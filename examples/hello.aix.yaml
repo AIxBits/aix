@@ -1,0 +1,27 @@
+specVersion: 0.1.0
+metadata:
+  id: hello
+  name: AIX Hello
+  version: 1.0.0
+state:
+  city: Shanghai
+resources:
+  welcome:
+    type: text
+    value: Hello, AIX
+ui:
+  id: home
+  type: page
+  children:
+    - id: welcome
+      type: text
+      props:
+        resource: welcome
+    - id: city
+      type: input
+      props:
+        value:
+          $state: city
+workflows: []
+connectors: []
+permissions: []
