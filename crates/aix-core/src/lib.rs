@@ -35,7 +35,7 @@ pub struct AppMetadata {
     pub id: String,
     pub name: String,
     pub version: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
@@ -46,7 +46,7 @@ pub struct Resource {
     #[serde(rename = "type")]
     pub kind: ResourceKind,
     pub value: Value,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
 }
 
@@ -106,9 +106,9 @@ pub struct Workflow {
 pub struct EventTrigger {
     #[serde(rename = "type")]
     pub kind: EventKind,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval_ms: Option<u64>,
 }
 
@@ -185,6 +185,8 @@ pub struct PermissionRequest {
 /// Capability names shared by app definitions and operation descriptors.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Capability {
+    #[serde(rename = "ai.generate")]
+    AiGenerate,
     #[serde(rename = "network.request")]
     NetworkRequest,
     #[serde(rename = "file.read")]

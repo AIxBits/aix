@@ -82,6 +82,7 @@
       "properties": {
         "capability": {
           "enum": [
+            "ai.generate",
             "network.request",
             "file.read",
             "file.write",

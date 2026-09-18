@@ -1,9 +1,12 @@
 //! Authoritative Rust-side application validation.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
 
 use aix_core::{AppDefinition, Capability, EventKind, UiNode, Workflow, SPEC_VERSION};
+use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::OperationRegistry;
 
@@ -56,15 +59,52 @@ pub fn validate_app_json(
             "app definition exceeds 1 MiB",
         ));
     }
-    let app = serde_json::from_str::<AppDefinition>(source).map_err(|error| {
+    let value = serde_json::from_str::<Value>(source).map_err(|error| {
         single_issue(
             "/",
             "invalid_structure",
             format!("app definition is not valid JSON: {error}"),
         )
     })?;
+    let schema_issues = app_schema_validator()
+        .iter_errors(&value)
+        .map(|error| {
+            let path = error.instance_path().to_string();
+            ValidationIssue {
+                path: if path.is_empty() {
+                    "/".to_owned()
+                } else {
+                    path
+                },
+                code: "invalid_structure".to_owned(),
+                message: error.to_string(),
+            }
+        })
+        .collect::<Vec<_>>();
+    if !schema_issues.is_empty() {
+        return Err(AppValidationError {
+            issues: schema_issues,
+        });
+    }
+    let app = serde_json::from_value::<AppDefinition>(value).map_err(|error| {
+        single_issue(
+            "/",
+            "invalid_structure",
+            format!("app definition could not be decoded: {error}"),
+        )
+    })?;
     validate_app(&app, operations)?;
     Ok(app)
+}
+
+fn app_schema_validator() -> &'static Validator {
+    static VALIDATOR: OnceLock<Validator> = OnceLock::new();
+    VALIDATOR.get_or_init(|| {
+        let schema =
+            serde_json::from_str(include_str!("../../../packages/aix-schema/app.schema.json"))
+                .expect("embedded App Schema must be valid JSON");
+        jsonschema::validator_for(&schema).expect("embedded App Schema must compile")
+    })
 }
 
 /// Validate semantic invariants that serde cannot express.
@@ -421,6 +461,7 @@ fn validate_required_text(value: &str, path: &str, issues: &mut Vec<ValidationIs
 
 fn capability_name(capability: &Capability) -> &'static str {
     match capability {
+        Capability::AiGenerate => "ai.generate",
         Capability::NetworkRequest => "network.request",
         Capability::FileRead => "file.read",
         Capability::FileWrite => "file.write",

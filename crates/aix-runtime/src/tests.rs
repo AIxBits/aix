@@ -218,6 +218,8 @@ fn host_operations_fail_without_performing_effects() {
     let http = runtime.operations().definition("http.request").unwrap();
     assert_eq!(http.required_permissions, vec![Capability::NetworkRequest]);
     assert_eq!(http.side_effects, vec![SideEffect::NetworkRequest]);
+    let ai = runtime.operations().definition("ai.generate").unwrap();
+    assert_eq!(ai.required_permissions, vec![Capability::AiGenerate]);
 }
 
 #[test]
@@ -389,6 +391,18 @@ fn rust_boundary_rejects_unknown_fields_and_oversized_input() {
         runtime.load_json(&oversized).unwrap_err().issues[0].code,
         "definition_too_large"
     );
+}
+
+#[test]
+fn rust_boundary_enforces_the_normative_json_schema() {
+    let runtime = runtime();
+    let mut app = example_value();
+    app["metadata"]["description"] = Value::Null;
+    let error = runtime.load_json(&app.to_string()).unwrap_err();
+    assert!(error
+        .issues
+        .iter()
+        .any(|issue| issue.code == "invalid_structure"));
 }
 
 fn example_value() -> Value {

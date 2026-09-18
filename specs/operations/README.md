@@ -28,7 +28,7 @@ The registry also returns runtime boundary errors: `unknown_operation`, `invalid
 | `http.request` | URL, method, headers, body | status, headers, body | `network.request` / `network.request` | Returns `adapter_unavailable` until Phase 6 |
 | `time.now` | empty object | `unixMs` | `time.read` | Reads host wall-clock time |
 | `notification.show` | message and optional title | delivered flag | `notification.show` / `notification.show` | Returns `adapter_unavailable` until a host adapter exists |
-| `ai.generate` | prompt and optional provider-neutral hints | text and optional data | `ai.generate`, `network.request` / `network.request` | Returns `adapter_unavailable` until a provider adapter exists |
+| `ai.generate` | prompt and optional provider-neutral hints | text and optional data | `ai.generate`, `network.request` / `ai.generate` | Returns `adapter_unavailable` until a provider adapter exists |
 
 Exact schemas are the definitions returned by `cargo run -p aix-runtime -- operations`. Schemas use JSON Schema Draft 2020-12 and reject unknown input properties. Defaults in schemas document omitted behavior; callers do not rely on schema mutation.
 

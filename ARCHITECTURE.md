@@ -1,10 +1,21 @@
 # Architecture
 
-## Execution boundary
+## Authoring and execution boundaries
 
 ```text
-User / AI provider
-    -> JSON or YAML App Definition
+User requirement -> App Builder -> AI provider adapter
+                         |              ^ secret resolved by host
+                         v
+                 candidate App Definition
+                         |
+                         v
+                 validator / repair loop
+                         |
+                         v
+                 user review and save
+                         |
+                         v
+                  JSON/YAML App Definition
     -> structural + semantic validator
     -> Rust runtime / event dispatcher
     -> workflow graph / operation registry
@@ -13,12 +24,13 @@ User / AI provider
 UI event -> runtime event dispatcher
 ```
 
-The app is untrusted data. Only registered operations execute. No eval, script node, dynamic module loading or generated host command is permitted. An AI provider is an optional adapter behind `ai.generate`, never an execution engine.
+Model output and app definitions are untrusted data. The authoring plane can generate and revise definitions, but only the runtime can execute registered operations. No eval, script node, dynamic module loading or generated host command is permitted. Runtime `ai.generate` is an app operation and is separate from the App Builder used to author apps.
 
 ## Module ownership
 
 | Module | Responsibility |
 | --- | --- |
+| aix-authoring | Provider-neutral definition generation, validation and repair loop |
 | aix-core | Portable app and operation protocol types |
 | aix-runtime | Operation registry, state, event queue and workflow execution |
 | aix-permission | Requested capabilities intersected with host-approved grants |
@@ -28,6 +40,8 @@ The app is untrusted data. Only registered operations execute. No eval, script n
 | desktop | Tauri 2 host, approval UI, SQLite and native adapters |
 
 The Rust runtime is an independent trust boundary. It decodes strict protocol types, validates IDs and workflow graphs, checks registered operations and validates static operation inputs. Frontend validation cannot authorize native execution.
+
+The authoring crate never handles credentials. A desktop host owns provider profiles, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Provider responses are size-bounded and cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
 
 ## State and workflows (planned)
 

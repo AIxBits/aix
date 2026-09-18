@@ -12,6 +12,8 @@ test('rejects unsupported versions, root fields and UI kinds', () => {
 });
 test('requires scoped known capabilities', () => {
   const app = fixture();
+  app.permissions = [{ capability: 'ai.generate', scopes: ['default'] }];
+  assert.equal(validateApp(app).valid, true);
   for (const p of [{ capability: 'admin', scopes: ['*'] }, { capability: 'file.read', scopes: [] }]) {
     app.permissions = [p]; assert.equal(validateApp(app).valid, false);
   }

@@ -285,7 +285,7 @@ fn builtins() -> Vec<BuiltinOperation> {
                 "AI provider adapter is unavailable",
             )],
             &[SideEffect::AiGenerate, SideEffect::NetworkRequest],
-            &[Capability::NetworkRequest],
+            &[Capability::AiGenerate],
         ),
     ]
 }
