@@ -1,8 +1,10 @@
 # Security
 
-AIX is experimental and has not undergone an independent security audit. Phase 3 executes bounded workflows over registered Rust operations but does not yet implement scoped host grants. HTTP, notification and AI adapters remain disabled. Do not use it as a production sandbox for untrusted applications.
+AIX is experimental and has not undergone an independent security audit. Phase 4 executes bounded workflows and renders validated snapshots but does not yet implement scoped host grants. HTTP, notification and AI adapters remain disabled. Do not use it as a production sandbox for untrusted applications.
 
 Definitions are data, never executable Python, Shell or JavaScript. The Rust runtime validates definitions independently, resolves exact registered IDs and checks Operation inputs and outputs against compiled schemas. Workflow graphs and binding depth are bounded; failed workflows restore their in-memory state snapshot and successful state commits use one SQLite statement. Cancellation is cooperative between Operations. An app's requested capabilities are not host grants. External effects stay disabled until permission mediation and their host adapters are implemented. Rendered resources and redirects remain within the same permission boundary as connectors.
+
+React receives an immutable UI/state/resource snapshot and can only return typed events. The Tauri bridge exposes no direct Operation command. UI text is rendered as React text, and remote Definition media is not assigned to DOM URLs. The current content security policy limits content to packaged assets and approved inline media.
 
 Model output is untrusted. The App Builder bounds provider output, validates every candidate through the Rust Runtime and limits automatic repair attempts. The provider protocol contains no API key field. Future desktop adapters must retrieve secrets from OS-backed storage and sanitize provider errors before returning them to the UI.
 

@@ -1,0 +1,28 @@
+[package]
+name = "aix-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "aix_desktop_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "aix-desktop"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[features]
+default = []
+desktop = ["dep:tauri", "tauri/wry"]
+
+[dependencies]
+aix-core = { path = "../../../crates/aix-core" }
+aix-runtime = { path = "../../../crates/aix-runtime" }
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.11.5", default-features = false, optional = true , features = [] }
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }

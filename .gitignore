@@ -1,6 +1,8 @@
 node_modules/
 dist/
 target/
+*.tsbuildinfo
+/apps/desktop/src-tauri/gen/schemas/
 .DS_Store
 *.sqlite
 .env

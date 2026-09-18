@@ -28,3 +28,16 @@ jobs:
       - run: cargo run -p aix-runtime --locked
       - run: cargo run -p aix-runtime --locked -- validate examples/hello.aix.json
       - run: cargo run -p aix-runtime --locked -- validate examples/workflow.aix.json
+  desktop-native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build -w @aix/ui
+      - run: npm run build -w @aix/desktop
+      - run: cargo check -p aix-desktop --features desktop --locked

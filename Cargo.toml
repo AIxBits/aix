@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/aix-authoring", "crates/aix-core", "crates/aix-runtime", "crates/aix-permission", "crates/aix-connector"]
+members = ["apps/desktop/src-tauri", "crates/aix-authoring", "crates/aix-core", "crates/aix-runtime", "crates/aix-permission", "crates/aix-connector"]
 resolver = "2"
 
 [workspace.package]

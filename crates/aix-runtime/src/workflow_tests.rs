@@ -441,6 +441,18 @@ fn state_store_round_trips_json() {
     assert_eq!(store.load("app").unwrap(), Some(json!({ "value": [1, 2] })));
 }
 
+#[test]
+fn timer_event_uses_camel_case_at_the_ipc_boundary() {
+    let event = RuntimeEvent::Timer {
+        workflow_id: "heartbeat".to_owned(),
+        payload: Value::Null,
+    };
+    assert_eq!(
+        serde_json::to_value(event).unwrap(),
+        json!({ "type": "timer", "workflowId": "heartbeat", "payload": null })
+    );
+}
+
 fn unique_database_path() -> PathBuf {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)

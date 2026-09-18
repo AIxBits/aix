@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AIX Runtime",
+  "version": "0.1.0-beta.1",
+  "identifier": "io.aixbits.runtime",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "title": "AIX Runtime", "width": 960, "height": 720, "minWidth": 640, "minHeight": 480 }],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; media-src 'self' data:; style-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": { "active": true, "targets": "all" }
+}

@@ -41,6 +41,8 @@ Model output and app definitions are untrusted data. The authoring plane can gen
 
 The Rust runtime is an independent trust boundary. It decodes strict protocol types, validates IDs and workflow graphs, checks registered operations and validates static operation inputs. Frontend validation cannot authorize native execution.
 
+The desktop IPC surface contains two commands: load a Definition and dispatch a typed event. `DesktopHost` owns the Runtime session and returns immutable render snapshots. React has no command for direct Operation invocation. `app.start`, workflow selection, bindings and state commits remain inside Rust.
+
 The authoring crate never handles credentials. A desktop host owns provider profiles, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Provider responses are size-bounded and cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
 
 ## State and workflows
@@ -55,6 +57,8 @@ Every side effect, including state mutation, passes a resolver boundary. Interna
 
 Resources have identity and content independent of UI nodes. Renderers receive resource handles; connectors return structured data. React contains no weather logic and no direct API client.
 
+The Phase 4 resolver exposes text and structured data directly. Media reaches DOM elements only as an approved handle; the initial resolver accepts a small set of inline data media types and marks remote URLs unavailable. Phase 6 will resolve remote resources behind network permission checks.
+
 ## Beta scope
 
-One host, one process, a small operation registry, DAG workflows and basic UI components. No arbitrary plugins, distributed scheduler, code sandbox or provider-specific core abstractions. Tauri integration is deferred to Phase 4; HTTP transport to Phase 6.
+One host, one process, a small operation registry, DAG workflows and basic UI components. No arbitrary plugins, distributed scheduler, code sandbox or provider-specific core abstractions. HTTP transport is deferred to Phase 6.

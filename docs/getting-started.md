@@ -8,4 +8,14 @@ Run `cargo run -p aix-runtime -- validate examples/hello.aix.json` to repeat str
 
 Validate the Phase 3 example with `npm run validate -- examples/workflow.aix.json` and `cargo run -p aix-runtime -- validate examples/workflow.aix.json`. An embedding host loads the returned `AppDefinition` into `AppSession`, supplies a `MemoryStateStore` or `SqliteStateStore`, and dispatches typed `RuntimeEvent` values. See the [Workflow Spec](../specs/workflows/README.md) for binding, ordering, timer and rollback rules.
 
-HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist. The React/Tauri desktop launch path starts in Phase 4, so Phase 3 is currently consumed as a Rust library rather than an end-user desktop executable.
+To start the Phase 4 desktop host, install the [platform prerequisites listed by Tauri](https://v2.tauri.app/start/prerequisites/) and run:
+
+```sh
+npm run desktop:dev -w @aix/desktop
+```
+
+Paste the contents of `examples/workflow.aix.json` and choose **Load app**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
+
+Use `npm run desktop:build -w @aix/desktop` to produce the current operating system's native package. Packaging and signing configuration for all supported release targets is completed in Phase 9.
+
+HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist.

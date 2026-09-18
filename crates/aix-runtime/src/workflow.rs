@@ -61,6 +61,7 @@ pub enum RuntimeEvent {
     },
     #[serde(rename = "timer")]
     Timer {
+        #[serde(rename = "workflowId")]
         workflow_id: String,
         #[serde(default)]
         payload: Value,
