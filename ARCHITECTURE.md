@@ -43,11 +43,11 @@ The Rust runtime is an independent trust boundary. It decodes strict protocol ty
 
 The authoring crate never handles credentials. A desktop host owns provider profiles, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Provider responses are size-bounded and cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
 
-## State and workflows (planned)
+## State and workflows
 
-State uses JSON values. State writes flow through the runtime and publish immutable snapshots. SQLite persists app-local state and host configuration; secrets remain outside definitions. Each workflow is a finite directed acyclic graph with an explicit entry node. Phase 2 validates this graph but does not dispatch it. Phase 3 execution will be sequential and deterministic, with explicit failure propagation, step/time limits and cancellation. Event values and step outputs are data, never executable expressions.
+State uses JSON values. State writes flow through registered Operations. `AppSession` loads and commits app-local state through a `StateStore`; the included desktop-oriented implementation uses SQLite. Secrets remain outside definitions. Each workflow is a finite directed acyclic graph with an explicit entry node. Execution is sequential and deterministic, with conditional edges, a configurable step limit and cooperative cancellation between Operations. Event values and step outputs are data, never executable expressions.
 
-Bindings use structured references such as `{ "$state": "city" }`; transforms and conditions use a bounded declarative vocabulary. Exact input/output contracts are introduced alongside implementation, not assumed from free-form strings.
+Bindings use structured references such as `{ "$state": "/city" }`, `{ "$event": "/value" }` and `{ "$step": "fetch", "path": "/body" }`. They are resolved immediately before the Operation input is validated. Each workflow is a transaction over in-memory state: any binding or Operation error, cancellation, limit breach or persistence failure restores the pre-workflow snapshot.
 
 ## Side effects and trust (planned)
 

@@ -27,6 +27,19 @@ test('checks workflow graph and event targets', () => {
   a.workflows[0].steps[0].next = ['missing']; assert.equal(validateApp(a).valid, false);
   a.workflows[0].steps[0].next = []; a.workflows[0].on.target = 'missing'; assert.equal(validateApp(a).valid, false);
 });
+test('accepts conditional workflow edges and bounds graph size', () => {
+  const a = fixture();
+  a.workflows = [{ id: 'branch', on: { type: 'app.start' }, entry: 'choose', steps: [
+    { id: 'choose', operation: 'logic.if', input: { condition: true, then: 1, else: 0 }, next: [{ step: 'done', when: { path: '/value', equals: 1 } }] },
+    { id: 'done', operation: 'state.set', input: { path: '/result', value: 1 } }
+  ] }];
+  assert.equal(validateApp(a).valid, true);
+  a.workflows[0].steps[0].next[0].step = 'missing';
+  assert.equal(validateApp(a).valid, false);
+  a.workflows[0].steps = Array.from({ length: 257 }, (_, index) => ({ id: `step${index}`, operation: 'time.now', input: {} }));
+  a.workflows[0].entry = 'step0';
+  assert.equal(validateApp(a).valid, false);
+});
 test('rejects timer without interval', () => { const a = fixture(); a.workflows = [{id:'tick',on:{type:'timer'},entry:'n',steps:[{id:'n',operation:'time.now',input:{}}]}]; assert.equal(validateApp(a).valid,false); });
 test('rejects duplicate YAML keys, aliases and oversized input', () => {
   assert.throws(() => parseApp('a: 1\na: 2'));

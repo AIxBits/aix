@@ -2,7 +2,7 @@
 
 AIX is an open specification and runtime for applications described by AI or people. AI builds a definition; the runtime validates and executes registered operations. Definitions never execute arbitrary Python, Shell, or JavaScript.
 
-**Status: Phase 2.5 foundation.** App definitions are validated independently in TypeScript and Rust. The Rust registry exposes checked contracts for all ten Beta operations and executes the pure/state operations. A provider-neutral App Builder can generate, validate and repair definitions through an injected model adapter. Real provider connections, credential storage, workflow scheduling, React rendering, Tauri integration, SQLite persistence and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
+**Status: Phase 3 foundation.** App definitions are validated independently in TypeScript and Rust. The Rust Runtime executes bounded event-driven DAG workflows, resolves state/event/step bindings and persists app-local state through SQLite. The registry exposes checked contracts for all ten Beta operations. A provider-neutral App Builder can generate, validate and repair definitions through an injected model adapter. Real provider connections, credential storage, React rendering, Tauri integration, scoped permission enforcement, HTTP transport and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ cargo run -p aix-runtime -- validate examples/hello.aix.json
 cargo run -p aix-runtime -- operations
 ```
 
-The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every registered input/output schema, error, side effect and required capability. Workflow execution begins in Phase 3; validating an app does not run it.
+The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every registered input/output schema, error, side effect and required capability. Hosts execute definitions through the Rust `AppSession` API; validation alone never runs an app.
 
 ## Repository
 
@@ -28,6 +28,6 @@ The TypeScript command accepts JSON or YAML. The Rust command validates JSON at 
 - `specs/`: public contracts; `examples/`: application definitions.
 - `tests/`: schema integration tests; crate modules contain Rust unit tests.
 
-See [Architecture](ARCHITECTURE.md), [Roadmap](ROADMAP.md), [Getting started](docs/getting-started.md), [Authoring](specs/authoring/README.md), [App Spec](specs/app/README.md), [Operations](specs/operations/README.md), [Permissions](specs/permissions/README.md), and [Connectors](specs/connectors/README.md).
+See [Architecture](ARCHITECTURE.md), [Roadmap](ROADMAP.md), [Getting started](docs/getting-started.md), [Authoring](specs/authoring/README.md), [App Spec](specs/app/README.md), [Workflows](specs/workflows/README.md), [Operations](specs/operations/README.md), [Permissions](specs/permissions/README.md), and [Connectors](specs/connectors/README.md).
 
 Contributions follow [CONTRIBUTING](CONTRIBUTING.md). Security boundaries and reporting are in [SECURITY](SECURITY.md). Licensed under Apache-2.0.

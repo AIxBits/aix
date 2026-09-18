@@ -39,7 +39,7 @@ export function validateApp(value: unknown): ValidationResult {
       if (visiting.has(id)) { errors.push(`Workflow cycle: ${id}`); return; }
       if (done.has(id)) return;
       visiting.add(id);
-      for (const next of steps.get(id).next ?? []) walk(next);
+      for (const edge of steps.get(id).next ?? []) walk(typeof edge === 'string' ? edge : edge.step);
       visiting.delete(id); done.add(id);
     }
     for (const id of steps.keys()) walk(id);

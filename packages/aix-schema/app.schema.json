@@ -183,8 +183,7 @@
         "next": {
           "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]*$"
+            "$ref": "#/$defs/transition"
           }
         }
       },
@@ -194,6 +193,37 @@
         "input"
       ],
       "additionalProperties": false
+    },
+    "transition": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]*$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "step": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]*$"
+            },
+            "when": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(|/.*)$"
+                },
+                "equals": {}
+              },
+              "required": ["equals"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["step", "when"],
+          "additionalProperties": false
+        }
+      ]
     },
     "event": {
       "type": "object",
@@ -239,7 +269,8 @@
           "items": {
             "$ref": "#/$defs/step"
           },
-          "minItems": 1
+          "minItems": 1,
+          "maxItems": 256
         }
       },
       "required": [

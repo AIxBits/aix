@@ -5,16 +5,29 @@
 //! types and checked again at this trust boundary.
 
 mod app_validation;
+mod binding;
 mod builtins;
 mod operation;
+mod state_store;
+mod workflow;
 
 pub use app_validation::{
     validate_app, validate_app_json, AppValidationError, ValidationIssue, MAX_APP_DEFINITION_BYTES,
+    MAX_WORKFLOW_STEPS,
+};
+pub use binding::{
+    contains_bindings, resolve_bindings, validate_binding_template, BindingError, BindingSources,
+    MAX_BINDING_DEPTH,
 };
 pub use builtins::builtin_registry;
 pub use operation::{
     ErrorDefinition, Operation, OperationContext, OperationDefinition, OperationError,
     OperationRegistry, RegisterError, SideEffect,
+};
+pub use state_store::{MemoryStateStore, SqliteStateStore, StateStore, StateStoreError};
+pub use workflow::{
+    AppSession, CancellationToken, DispatchResult, ExecutionLimits, RuntimeEvent, SessionError,
+    StepExecution, TimerSubscription, WorkflowError, WorkflowErrorCode, WorkflowExecution,
 };
 
 use aix_core::AppDefinition;
@@ -61,3 +74,5 @@ pub fn spec_version() -> &'static str {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod workflow_tests;

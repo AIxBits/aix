@@ -133,7 +133,44 @@ pub struct WorkflowStep {
     pub operation: String,
     pub input: Value,
     #[serde(default)]
-    pub next: Vec<String>,
+    pub next: Vec<WorkflowTransition>,
+}
+
+/// An unconditional or output-conditioned edge in a workflow graph.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorkflowTransition {
+    /// Always activate the target after the current step succeeds.
+    Step(String),
+    /// Activate the target when the current output matches a JSON value.
+    Conditional(ConditionalTransition),
+}
+
+impl WorkflowTransition {
+    /// Target step ID referenced by this edge.
+    pub fn target(&self) -> &str {
+        match self {
+            Self::Step(step) => step,
+            Self::Conditional(transition) => &transition.step,
+        }
+    }
+}
+
+/// A workflow edge selected by comparing the current step output.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConditionalTransition {
+    pub step: String,
+    pub when: TransitionCondition,
+}
+
+/// Equality condition evaluated against a JSON Pointer in step output.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TransitionCondition {
+    #[serde(default)]
+    pub path: String,
+    pub equals: Value,
 }
 
 /// An external connector declaration.

@@ -6,4 +6,6 @@ Edit `examples/hello.aix.json`, then run `npm run validate -- examples/hello.aix
 
 Run `cargo run -p aix-runtime -- validate examples/hello.aix.json` to repeat structural and semantic checks inside Rust. The Rust trust boundary currently accepts JSON; hosts must normalize validated YAML to JSON before loading it. Run `cargo run -p aix-runtime -- operations` to inspect the operation contracts.
 
-Phase 2 can invoke registered operations through the Rust `Runtime::execute` API. It does not dispatch workflows. HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist. There is no desktop launch command yet.
+Validate the Phase 3 example with `npm run validate -- examples/workflow.aix.json` and `cargo run -p aix-runtime -- validate examples/workflow.aix.json`. An embedding host loads the returned `AppDefinition` into `AppSession`, supplies a `MemoryStateStore` or `SqliteStateStore`, and dispatches typed `RuntimeEvent` values. See the [Workflow Spec](../specs/workflows/README.md) for binding, ordering, timer and rollback rules.
+
+HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist. The React/Tauri desktop launch path starts in Phase 4, so Phase 3 is currently consumed as a Rust library rather than an end-user desktop executable.

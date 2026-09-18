@@ -8,10 +8,13 @@ use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::OperationRegistry;
+use crate::{contains_bindings, validate_binding_template, OperationRegistry};
 
 /// Maximum accepted JSON definition size at the Rust trust boundary.
 pub const MAX_APP_DEFINITION_BYTES: usize = 1_048_576;
+
+/// Maximum number of steps accepted in one workflow graph.
+pub const MAX_WORKFLOW_STEPS: usize = 256;
 
 /// One machine-readable problem found in an app definition.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -315,6 +318,14 @@ fn validate_workflow(
         );
         return;
     }
+    if workflow.steps.len() > MAX_WORKFLOW_STEPS {
+        push_issue(
+            issues,
+            &format!("{path}/steps"),
+            "workflow_too_large",
+            format!("workflow cannot contain more than {MAX_WORKFLOW_STEPS} steps"),
+        );
+    }
     let mut steps = BTreeMap::new();
     for (index, step) in workflow.steps.iter().enumerate() {
         let step_path = format!("{path}/steps/{index}");
@@ -335,6 +346,10 @@ fn validate_workflow(
                 "workflow step input must be a JSON object",
             );
         }
+    }
+    let step_ids = steps.keys().copied().collect::<BTreeSet<_>>();
+    for (index, step) in workflow.steps.iter().enumerate() {
+        let step_path = format!("{path}/steps/{index}");
         match operations.definition(&step.operation) {
             None => push_issue(
                 issues,
@@ -343,7 +358,16 @@ fn validate_workflow(
                 format!("operation `{}` is not registered", step.operation),
             ),
             Some(definition) => {
-                if let Err(error) = operations.validate_input(&step.operation, &step.input) {
+                if contains_bindings(&step.input) {
+                    for error in validate_binding_template(&step.input, &step_ids) {
+                        push_issue(
+                            issues,
+                            &format!("{step_path}/input{}", error.path),
+                            &error.code,
+                            error.message,
+                        );
+                    }
+                } else if let Err(error) = operations.validate_input(&step.operation, &step.input) {
                     push_issue(
                         issues,
                         &format!("{step_path}/input"),
@@ -378,12 +402,12 @@ fn validate_workflow(
     }
     for (index, step) in workflow.steps.iter().enumerate() {
         for next in &step.next {
-            if !steps.contains_key(next.as_str()) {
+            if !steps.contains_key(next.target()) {
                 push_issue(
                     issues,
                     &format!("{path}/steps/{index}/next"),
                     "unknown_step_edge",
-                    format!("next step `{next}` does not exist"),
+                    format!("next step `{}` does not exist", next.target()),
                 );
             }
         }
@@ -410,7 +434,7 @@ fn detect_cycles(
         let step = steps.get(id)?;
         states.insert(id, 1);
         for next in &step.next {
-            if let Some(cycle) = visit(next, steps, states) {
+            if let Some(cycle) = visit(next.target(), steps, states) {
                 return Some(cycle);
             }
         }

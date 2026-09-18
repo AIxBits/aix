@@ -1,0 +1,63 @@
+{
+  "specVersion": "0.1.0",
+  "metadata": {
+    "id": "workflow-example",
+    "name": "Workflow Example",
+    "version": "1.0.0",
+    "description": "Phase 3 state, event and step binding example"
+  },
+  "state": { "city": "Shanghai", "status": "idle" },
+  "resources": {},
+  "ui": {
+    "id": "home",
+    "type": "page",
+    "children": [
+      { "id": "city", "type": "input", "props": { "value": { "$state": "/city" } } },
+      { "id": "refresh", "type": "button", "props": { "label": "Refresh" } }
+    ]
+  },
+  "workflows": [
+    {
+      "id": "initialize",
+      "on": { "type": "app.start" },
+      "entry": "ready",
+      "steps": [
+        { "id": "ready", "operation": "state.set", "input": { "path": "/status", "value": "ready" } }
+      ]
+    },
+    {
+      "id": "changeCity",
+      "on": { "type": "ui.change", "target": "city" },
+      "entry": "writeCity",
+      "steps": [
+        {
+          "id": "writeCity",
+          "operation": "state.set",
+          "input": { "path": "/city", "value": { "$event": "/value" } }
+        }
+      ]
+    },
+    {
+      "id": "refresh",
+      "on": { "type": "ui.click", "target": "refresh" },
+      "entry": "selectCity",
+      "steps": [
+        {
+          "id": "selectCity",
+          "operation": "logic.if",
+          "input": { "condition": true, "then": { "$state": "/city" }, "else": "unknown" },
+          "next": [
+            { "step": "writeStatus", "when": { "path": "/value", "equals": "Shanghai" } }
+          ]
+        },
+        {
+          "id": "writeStatus",
+          "operation": "state.set",
+          "input": { "path": "/status", "value": { "$step": "selectCity", "path": "/value" } }
+        }
+      ]
+    }
+  ],
+  "connectors": [],
+  "permissions": []
+}
