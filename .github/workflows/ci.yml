@@ -25,3 +25,4 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - run: cargo run -p aix-runtime --locked
+      - run: cargo run -p aix-runtime --locked -- validate examples/hello.aix.json

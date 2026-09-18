@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aix.dev/schemas/operation/0.1.0",
+  "title": "AIX Operation Definition 0.1.0",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
+    },
+    "input": {
+      "type": "object"
+    },
+    "output": {
+      "type": "object"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["code", "description"],
+        "additionalProperties": false
+      }
+    },
+    "sideEffects": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "state.write",
+          "network.request",
+          "notification.show",
+          "ai.generate",
+          "time.read"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "requiredPermissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "network.request",
+          "file.read",
+          "file.write",
+          "notification.show"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "id",
+    "input",
+    "output",
+    "errors",
+    "sideEffects",
+    "requiredPermissions"
+  ],
+  "additionalProperties": false
+}

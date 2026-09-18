@@ -27,11 +27,11 @@ The app is untrusted data. Only registered operations execute. No eval, script n
 | aix-ui | React rendering of snapshots; emits typed UI events |
 | desktop | Tauri 2 host, approval UI, SQLite and native adapters |
 
-Current Phase 1 Rust types are envelopes, not proof of validation. The Rust runtime must implement authoritative validation before accepting runnable definitions in Phase 2. Frontend validation alone cannot authorize native execution.
+The Rust runtime is an independent trust boundary. It decodes strict protocol types, validates IDs and workflow graphs, checks registered operations and validates static operation inputs. Frontend validation cannot authorize native execution.
 
 ## State and workflows (planned)
 
-State uses JSON values. State writes flow through the runtime and publish immutable snapshots. SQLite persists app-local state and host configuration; secrets remain outside definitions. Each workflow is a finite directed acyclic graph with an explicit entry node. Initial execution will be sequential and deterministic, with explicit failure propagation, step/time limits and cancellation. Event values and step outputs are data, never executable expressions.
+State uses JSON values. State writes flow through the runtime and publish immutable snapshots. SQLite persists app-local state and host configuration; secrets remain outside definitions. Each workflow is a finite directed acyclic graph with an explicit entry node. Phase 2 validates this graph but does not dispatch it. Phase 3 execution will be sequential and deterministic, with explicit failure propagation, step/time limits and cancellation. Event values and step outputs are data, never executable expressions.
 
 Bindings use structured references such as `{ "$state": "city" }`; transforms and conditions use a bounded declarative vocabulary. Exact input/output contracts are introduced alongside implementation, not assumed from free-form strings.
 

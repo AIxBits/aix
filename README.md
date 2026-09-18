@@ -2,7 +2,7 @@
 
 AIX is an open specification and runtime for applications described by AI or people. AI builds a definition; the runtime validates and executes registered operations. Definitions never execute arbitrary Python, Shell, or JavaScript.
 
-**Status: Phase 1 foundation.** JSON/YAML validation and a Rust executable are available. Runtime operations, React rendering, Tauri integration, SQLite persistence and the weather demo are planned, not implemented. This is not yet a production runtime or the completed Beta.
+**Status: Phase 2 operation runtime.** App definitions are validated independently in TypeScript and Rust. The Rust registry exposes checked contracts for all ten Beta operations and executes the pure/state operations. Host adapters, workflow scheduling, React rendering, Tauri integration, SQLite persistence and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
 
 ## Quick start
 
@@ -14,9 +14,11 @@ npm run check
 npm run validate -- examples/hello.aix.json
 cargo test --workspace
 cargo run -p aix-runtime
+cargo run -p aix-runtime -- validate examples/hello.aix.json
+cargo run -p aix-runtime -- operations
 ```
 
-The validator prints `Valid AIX App`; the Rust executable prints the supported specification version. Neither executes the example yet.
+The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every registered input/output schema, error, side effect and required capability. Workflow execution begins in Phase 3; validating an app does not run it.
 
 ## Repository
 

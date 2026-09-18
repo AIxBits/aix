@@ -6,6 +6,6 @@ Required fields: `specVersion`, `metadata`, `state`, `resources`, `ui`, `workflo
 
 Metadata contains id, name, version and an optional description. UI nodes have unique ids and a supported type. Workflows have unique ids, a trigger (`on`), an entry step and steps with id, operation, input and optional next edges. Validation rejects missing entry/edge references, cycles, duplicate step ids, missing UI targets and timers without positive bounded intervals (minimum 100 ms).
 
-The JSON Schema checks shape; the exported TypeScript `validateApp` also checks graph semantics. `parseApp` parses bounded JSON/YAML without executing expressions. Success does not prove an operation is registered or a capability is granted. Those checks belong to the runtime.
+The JSON Schema checks shape; the exported TypeScript `validateApp` also checks graph semantics. `parseApp` parses bounded JSON/YAML without executing expressions. The Rust runtime decodes the definition into strict types, repeats graph and ID checks, verifies each operation is registered, validates static step input against its operation schema and requires every operation capability to appear in the app's permission requests. Host grants are checked separately in Phase 5.
 
-See the [minimal example](../../examples/hello.aix.json). `$state` binding syntax is reserved for Phase 3, and is not evaluated in Phase 1.
+See the [minimal example](../../examples/hello.aix.json). `$state` binding syntax and dynamic input resolution are reserved for Phase 3.
