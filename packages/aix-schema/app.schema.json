@@ -51,6 +51,7 @@
     },
     "connectors": {
       "type": "array",
+      "maxItems": 64,
       "items": {
         "$ref": "#/$defs/connector"
       }
@@ -298,12 +299,13 @@
         },
         "operations": {
           "type": "array",
+          "maxItems": 256,
           "items": {
             "type": "object",
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]*$"
+                "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
               },
               "method": {
                 "enum": [

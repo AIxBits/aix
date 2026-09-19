@@ -1,14 +1,35 @@
 use std::collections::BTreeSet;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::sync::Arc;
+use std::thread;
 
 use aix_core::{Capability, PermissionRequest};
 use serde_json::{json, Value};
 
 use crate::{
-    CapabilityResolver, ErrorDefinition, HostGrant, Operation, OperationContext,
-    OperationDefinition, OperationError, OperationRegistry, PermissionCheck, PermissionDenied,
-    PermissionResolver, RegisterError, Runtime, SideEffect, MAX_APP_DEFINITION_BYTES,
+    AppSession, CancellationToken, CapabilityResolver, ConnectorError, ErrorDefinition,
+    ExecutionLimits, HostGrant, HttpRequest, HttpResponse, HttpTransport, MemoryStateStore,
+    Operation, OperationContext, OperationDefinition, OperationError, OperationRegistry,
+    PermissionCheck, PermissionDenied, PermissionResolver, RegisterError, Runtime, RuntimeEvent,
+    SideEffect, MAX_APP_DEFINITION_BYTES,
 };
+
+struct FixtureHttp;
+
+impl HttpTransport for FixtureHttp {
+    fn execute(
+        &self,
+        _request: &HttpRequest,
+        _permissions: &dyn PermissionResolver,
+    ) -> Result<HttpResponse, ConnectorError> {
+        Ok(HttpResponse {
+            status: 200,
+            headers: Default::default(),
+            body: json!({ "ok": true }),
+        })
+    }
+}
 
 fn runtime() -> Runtime {
     Runtime::new().expect("built-in operation contracts should compile")
@@ -277,12 +298,19 @@ fn host_operations_require_grants_before_reaching_adapters() {
         })
         .collect::<Vec<_>>();
     let resolver = CapabilityResolver::new("test.app", &requests, &grants).unwrap();
-    let mut context = OperationContext::empty().with_permissions(Arc::new(resolver));
-    for (id, input) in [
-        (
+    let mut context = OperationContext::empty()
+        .with_permissions(Arc::new(resolver))
+        .with_http_transport(Arc::new(FixtureHttp));
+    let response = runtime
+        .execute(
             "http.request",
-            json!({ "url": "https://example.com/weather" }),
-        ),
+            &json!({ "url": "https://example.com/weather" }),
+            &mut context,
+        )
+        .unwrap();
+    assert_eq!(response["status"], 200);
+    assert_eq!(response["body"]["ok"], true);
+    for (id, input) in [
         ("notification.show", json!({ "message": "hello" })),
         ("ai.generate", json!({ "prompt": "hello" })),
     ] {
@@ -564,6 +592,77 @@ fn requires_declared_capability_for_effectful_operation() {
         "scopes": ["https://example.com"]
     }]);
     runtime.load_json(&app.to_string()).unwrap();
+}
+
+#[test]
+fn connector_declarations_become_executable_operations() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = [0_u8; 4096];
+        let size = stream.read(&mut request).unwrap();
+        let request = String::from_utf8_lossy(&request[..size]);
+        assert!(request.starts_with("GET /api/weather/Paris?units=metric "));
+        let body = r#"{"city":"Paris","temperature":22}"#;
+        write!(
+            stream,
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+        .unwrap();
+    });
+    let base = format!("http://{address}/api");
+    let mut value = example_value();
+    value["connectors"] = json!([{
+        "id": "weather",
+        "type": "http",
+        "baseUrl": base,
+        "operations": [{ "id": "weather.get", "method": "GET", "path": "/weather/{city}" }]
+    }]);
+    value["permissions"] = json!([{
+        "capability": "network.request",
+        "scopes": [format!("http://{address}/api")]
+    }]);
+    value["workflows"] = json!([{
+        "id": "fetch",
+        "on": { "type": "app.start" },
+        "entry": "request",
+        "steps": [{
+            "id": "request",
+            "operation": "weather.get",
+            "input": {
+                "pathParams": { "city": "Paris" },
+                "query": { "units": "metric" }
+            }
+        }]
+    }]);
+    let runtime = runtime();
+    let app = runtime.load_json(&value.to_string()).unwrap();
+    let grant = HostGrant::new(
+        &app.metadata.id,
+        Capability::NetworkRequest,
+        vec![format!("http://{address}/api")],
+    )
+    .unwrap();
+    let mut session = AppSession::with_grants(
+        runtime,
+        app,
+        MemoryStateStore::new(),
+        ExecutionLimits::default(),
+        &[grant],
+    )
+    .unwrap();
+    let result = session
+        .dispatch(
+            &RuntimeEvent::AppStart {
+                payload: Value::Null,
+            },
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    assert_eq!(result.workflows[0].steps[0].output["body"]["city"], "Paris");
+    server.join().unwrap();
 }
 
 #[test]

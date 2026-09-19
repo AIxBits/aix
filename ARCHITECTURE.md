@@ -57,8 +57,8 @@ Every side effect, including state mutation, passes a resolver boundary. Interna
 
 Resources have identity and content independent of UI nodes. Renderers receive resource handles; connectors return structured data. React contains no weather logic and no direct API client.
 
-The Phase 4 resolver exposes text and structured data directly. Media reaches DOM elements only as an approved handle; the initial resolver accepts a small set of inline data media types and marks remote URLs unavailable. Phase 6 will resolve remote resources behind network permission checks.
+The current resource resolver exposes text and structured data directly. Media reaches DOM elements only as an approved handle; it accepts a small set of inline data media types and marks remote URLs unavailable. A later resource-fetch adapter must use the same bounded HTTP transport and network permission checks.
 
 ## Beta scope
 
-One host, one process, a small operation registry, DAG workflows and basic UI components. No arbitrary plugins, distributed scheduler, code sandbox or provider-specific core abstractions. HTTP transport is deferred to Phase 6.
+One host, one process, a small operation registry, DAG workflows and basic UI components. No arbitrary plugins, distributed scheduler, code sandbox or provider-specific core abstractions. HTTP transport is synchronous at the Operation boundary in the Beta host.

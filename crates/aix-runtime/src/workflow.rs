@@ -172,6 +172,7 @@ pub enum SessionError {
     StateStore(StateStoreError),
     InvalidState(String),
     Permissions(ResolverBuildError),
+    ConnectorRegistration(crate::RegisterError),
 }
 
 impl std::fmt::Display for SessionError {
@@ -181,6 +182,7 @@ impl std::fmt::Display for SessionError {
             Self::StateStore(error) => write!(formatter, "state store: {error}"),
             Self::InvalidState(message) => formatter.write_str(message),
             Self::Permissions(error) => write!(formatter, "permissions: {error}"),
+            Self::ConnectorRegistration(error) => write!(formatter, "connectors: {error}"),
         }
     }
 }
@@ -214,12 +216,15 @@ impl<S: StateStore> AppSession<S> {
 
     /// Load an app with user-approved, app-bound host grants.
     pub fn with_grants(
-        runtime: Runtime,
+        mut runtime: Runtime,
         app: AppDefinition,
         store: S,
         limits: ExecutionLimits,
         grants: &[HostGrant],
     ) -> Result<Self, SessionError> {
+        runtime
+            .install_connectors(&app.connectors)
+            .map_err(SessionError::ConnectorRegistration)?;
         validate_app(&app, runtime.operations()).map_err(SessionError::InvalidApp)?;
         if limits.max_steps_per_workflow == 0 {
             return Err(SessionError::InvalidState(

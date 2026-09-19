@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use aix_connector::HttpRequest;
 use aix_core::Capability;
 use serde_json::{json, Map, Value};
 
@@ -55,10 +56,7 @@ impl Operation for BuiltinOperation {
             BuiltinKind::CollectionFilter => collection_filter(input),
             BuiltinKind::CollectionSort => collection_sort(input),
             BuiltinKind::DataTransform => data_transform(input),
-            BuiltinKind::HttpRequest => Err(adapter_unavailable(
-                "http.request",
-                "HTTP adapter is not installed; it is introduced in Phase 6",
-            )),
+            BuiltinKind::HttpRequest => http_request(input, context),
             BuiltinKind::TimeNow => time_now(),
             BuiltinKind::NotificationShow => Err(adapter_unavailable(
                 "notification.show",
@@ -220,10 +218,7 @@ fn builtins() -> Vec<BuiltinOperation> {
                 }),
                 &["status", "headers", "body"],
             ),
-            &[error(
-                "adapter_unavailable",
-                "HTTP host adapter is unavailable",
-            )],
+            &http_errors(),
             &[SideEffect::NetworkRequest],
             &[Capability::NetworkRequest],
         ),
@@ -317,6 +312,67 @@ fn error(code: &str, description: &str) -> ErrorDefinition {
         code: code.to_owned(),
         description: description.to_owned(),
     }
+}
+
+pub(crate) fn http_errors() -> Vec<ErrorDefinition> {
+    [
+        ("invalid_request", "HTTP request is invalid"),
+        ("invalid_limits", "HTTP host limits are invalid"),
+        ("invalid_url", "HTTP URL is invalid"),
+        ("invalid_header", "HTTP header is invalid"),
+        (
+            "request_too_large",
+            "HTTP request exceeds a configured limit",
+        ),
+        (
+            "response_too_large",
+            "HTTP response exceeds a configured limit",
+        ),
+        ("invalid_response", "HTTP response cannot be decoded"),
+        ("transport_error", "HTTP transport failed"),
+        ("timeout", "HTTP request timed out"),
+        ("redirect_limit", "HTTP redirect limit was reached"),
+        ("invalid_redirect", "HTTP redirect is invalid"),
+        (
+            "permission_denied",
+            "redirect destination is outside the granted scope",
+        ),
+        ("missing_parameter", "connector path parameter is missing"),
+        ("invalid_path", "connector path template is invalid"),
+    ]
+    .into_iter()
+    .map(|(code, description)| error(code, description))
+    .collect()
+}
+
+fn http_request(input: &Value, context: &OperationContext) -> Result<Value, OperationError> {
+    let headers = input
+        .get("headers")
+        .and_then(Value::as_object)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(|(name, value)| {
+                    value.as_str().map(|value| (name.clone(), value.to_owned()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let request = HttpRequest {
+        operation_id: "http.request".to_owned(),
+        url: input["url"].as_str().unwrap_or_default().to_owned(),
+        method: input
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or("GET")
+            .to_owned(),
+        headers,
+        body: input.get("body").cloned(),
+    };
+    context
+        .execute_http(&request)
+        .map(|response| json!({ "status": response.status, "headers": response.headers, "body": response.body }))
+        .map_err(|error| OperationError::new("http.request", error.code, error.message))
 }
 
 fn object_schema(properties: Value, required: &[&str]) -> Value {

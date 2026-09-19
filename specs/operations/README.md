@@ -17,7 +17,7 @@ The registry also returns runtime boundary errors: `unknown_operation`, `invalid
 
 ## Built-ins
 
-| ID | Input | Output | Effect / capability | Phase 2 behavior |
+| ID | Input | Output | Effect / capability | Current behavior |
 | --- | --- | --- | --- | --- |
 | `state.get` | `path` JSON Pointer | `value` | none | Reads app-local state |
 | `state.set` | `path`, `value` | `value` | `state.write` | Writes an existing container or object key |
@@ -25,7 +25,7 @@ The registry also returns runtime boundary errors: `unknown_operation`, `invalid
 | `collection.filter` | `items`, bounded `predicate` | `items` | none | Supports eq/ne/order/contains comparisons |
 | `collection.sort` | `items`, optional key `path` and order | `items` | none | Stable scalar sort; rejects mixed key types |
 | `data.transform` | `value`, target-to-pointer `mapping` | object `value` | none | Projects data using JSON Pointers |
-| `http.request` | URL, method, headers, body | status, headers, body | `network.request` / `network.request` | Returns `adapter_unavailable` until Phase 6 |
+| `http.request` | URL, method, headers, body | status, headers, body | `network.request` / `network.request` | Bounded host HTTP(S) adapter; each redirect is reauthorized |
 | `time.now` | empty object | `unixMs` | `time.read` | Reads host wall-clock time |
 | `notification.show` | message and optional title | delivered flag | `notification.show` / `notification.show` | Returns `adapter_unavailable` until a host adapter exists |
 | `ai.generate` | prompt and optional provider-neutral hints | text and optional data | `ai.generate`, `network.request` / `ai.generate` | Returns `adapter_unavailable` until a provider adapter exists |
@@ -36,7 +36,7 @@ Exact schemas are the definitions returned by `cargo run -p aix-runtime -- opera
 
 Paths are RFC 6901 JSON Pointers such as `/weather/temperature`. `collection.filter` accepts only the operators `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, and `contains`. `data.transform` maps output field names to source pointers. No operation accepts a callback, expression language, template code, JavaScript, Python or shell command.
 
-`state.set` is confined to the current `OperationContext`, but its local effect still crosses the resolver. External operations require an app request and a separately approved host grant before reaching an adapter. Phase 6 supplies the HTTP adapter. Model credentials and provider-specific clients remain outside definitions and the core registry.
+`state.set` is confined to the current `OperationContext`, but its local effect still crosses the resolver. External operations require an app request and a separately approved host grant before reaching an adapter. Model credentials and provider-specific clients remain outside definitions and the core registry.
 
 ## Checked invocation
 
@@ -50,4 +50,4 @@ Paths are RFC 6901 JSON Pointers such as `/weather/temperature`. `collection.fil
 
 App-local state is restored when an implementation returns an error or invalid output. This protects the in-memory context from partial mutations; external effects are not generally reversible and therefore require permission and adapter controls before invocation.
 
-Workflow step inputs are also checked while loading Phase 2 app definitions. Phase 3 will resolve state and prior-step bindings first, then apply the same invocation boundary to the resolved JSON.
+Static workflow step inputs are checked while loading definitions. At execution, the Runtime resolves state, event and prior-step bindings first, then applies the same invocation boundary to the resolved JSON.

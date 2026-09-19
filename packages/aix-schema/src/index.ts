@@ -48,6 +48,12 @@ export function validateApp(value: unknown): ValidationResult {
   for (const connector of app.connectors) {
     if (connectorIds.has(connector.id)) errors.push(`Duplicate connector: ${connector.id}`);
     connectorIds.add(connector.id);
+    try {
+      const base = new URL(connector.baseUrl);
+      if (base.username || base.password || base.search || base.hash) errors.push(`Invalid connector baseUrl: ${connector.baseUrl}`);
+    } catch {
+      errors.push(`Invalid connector baseUrl: ${connector.baseUrl}`);
+    }
     for (const operation of connector.operations) {
       if (operationIds.has(operation.id)) errors.push(`Duplicate connector operation: ${operation.id}`);
       operationIds.add(operation.id);

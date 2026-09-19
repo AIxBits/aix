@@ -59,4 +59,8 @@ test('rejects duplicate connector operation ids and invalid protocols', () => {
   assert.equal(validateApp(a).valid, false);
   a.connectors[0].operations.pop(); a.connectors[0].baseUrl = 'file:///etc/passwd';
   assert.equal(validateApp(a).valid, false);
+  a.connectors[0].baseUrl = 'https://example.com'; a.connectors[0].operations[0].id = 'getWeather';
+  assert.equal(validateApp(a).valid, false);
+  a.connectors[0].operations[0].id = 'weather.get'; a.connectors[0].baseUrl = 'https://example.com/v1?token=unsafe';
+  assert.equal(validateApp(a).valid, false);
 });

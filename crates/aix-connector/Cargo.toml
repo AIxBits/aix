@@ -6,3 +6,8 @@ license.workspace = true
 
 [dependencies]
 aix-core = { path = "../aix-core" }
+aix-permission = { path = "../aix-permission" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true

@@ -28,6 +28,7 @@ jobs:
       - run: cargo run -p aix-runtime --locked
       - run: cargo run -p aix-runtime --locked -- validate examples/hello.aix.json
       - run: cargo run -p aix-runtime --locked -- validate examples/workflow.aix.json
+      - run: cargo run -p aix-runtime --locked -- import-openapi examples/weather.openapi.json weather
   desktop-native:
     runs-on: macos-latest
     steps:

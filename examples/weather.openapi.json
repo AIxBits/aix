@@ -1,0 +1,43 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Weather Connector Import Example",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.open-meteo.com/v1"
+    }
+  ],
+  "paths": {
+    "/forecast": {
+      "get": {
+        "operationId": "weather.forecast",
+        "parameters": [
+          {
+            "name": "latitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "longitude",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "current",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current weather response"
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
+use aix_connector::validate_connector;
 use aix_core::{AppDefinition, Capability, EventKind, UiNode, Workflow, SPEC_VERSION};
 use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
@@ -55,6 +56,14 @@ pub fn validate_app_json(
     source: &str,
     operations: &OperationRegistry,
 ) -> Result<AppDefinition, AppValidationError> {
+    let app = parse_app_json(source)?;
+    validate_app(&app, operations)?;
+    Ok(app)
+}
+
+/// Decode a bounded, structurally valid JSON definition before app-specific
+/// connector Operations are installed for semantic validation.
+pub(crate) fn parse_app_json(source: &str) -> Result<AppDefinition, AppValidationError> {
     if source.len() > MAX_APP_DEFINITION_BYTES {
         return Err(single_issue(
             "/",
@@ -96,7 +105,6 @@ pub fn validate_app_json(
             format!("app definition could not be decoded: {error}"),
         )
     })?;
-    validate_app(&app, operations)?;
     Ok(app)
 }
 
@@ -207,9 +215,17 @@ pub fn validate_app(
         {
             push_issue(
                 &mut issues,
-                &format!("{path}/baseUrl"),
+                &path,
                 "invalid_base_url",
                 "connector baseUrl must use HTTP or HTTPS",
+            );
+        }
+        if let Err(error) = validate_connector(connector) {
+            push_issue(
+                &mut issues,
+                &format!("{path}/baseUrl"),
+                "invalid_connector",
+                error.message,
             );
         }
         for (operation_index, operation) in connector.operations.iter().enumerate() {

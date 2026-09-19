@@ -4,6 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use aix_connector::{
+    ConnectorError, HttpRequest, HttpResponse, HttpTransport, ReqwestHttpTransport,
+};
 use aix_core::Capability;
 use aix_permission::{DenyAllResolver, PermissionCheck, PermissionResolver, PermissionTarget};
 use jsonschema::Validator;
@@ -87,6 +90,7 @@ impl OperationError {
 pub struct OperationContext {
     state: Value,
     permissions: Arc<dyn PermissionResolver>,
+    http: Arc<dyn HttpTransport>,
 }
 
 impl OperationContext {
@@ -102,6 +106,7 @@ impl OperationContext {
         Ok(Self {
             state,
             permissions: Arc::new(DenyAllResolver),
+            http: Arc::new(ReqwestHttpTransport::default()),
         })
     }
 
@@ -110,12 +115,19 @@ impl OperationContext {
         Self {
             state: json!({}),
             permissions: Arc::new(DenyAllResolver),
+            http: Arc::new(ReqwestHttpTransport::default()),
         }
     }
 
     /// Replace the default-deny resolver with one supplied by the host.
     pub fn with_permissions(mut self, permissions: Arc<dyn PermissionResolver>) -> Self {
         self.permissions = permissions;
+        self
+    }
+
+    /// Replace the production HTTP adapter, primarily for embedding hosts and tests.
+    pub fn with_http_transport(mut self, http: Arc<dyn HttpTransport>) -> Self {
+        self.http = http;
         self
     }
 
@@ -127,12 +139,36 @@ impl OperationContext {
     pub(crate) fn state_mut(&mut self) -> &mut Value {
         &mut self.state
     }
+
+    pub(crate) fn execute_http(
+        &self,
+        request: &HttpRequest,
+    ) -> Result<HttpResponse, ConnectorError> {
+        self.http.execute(request, self.permissions.as_ref())
+    }
 }
 
 /// Implementation behind a registered operation definition.
 pub trait Operation: Send + Sync {
     /// Return the immutable public contract for this operation.
     fn definition(&self) -> &OperationDefinition;
+
+    /// Derive the concrete resource checked for a required capability.
+    /// Custom operations must expose targets as data; failure to do so denies
+    /// execution before the implementation runs.
+    fn permission_target(
+        &self,
+        capability: &Capability,
+        input: &Value,
+    ) -> Result<PermissionTarget, OperationError> {
+        default_permission_target(capability, input).ok_or_else(|| {
+            OperationError::new(
+                &self.definition().id,
+                "permission_target_unavailable",
+                "the Runtime cannot derive a concrete permission target for this operation",
+            )
+        })
+    }
 
     /// Execute against validated JSON input.
     fn execute(
@@ -168,6 +204,10 @@ pub enum RegisterError {
     MissingPermissionForSideEffect {
         operation: String,
         side_effect: SideEffect,
+    },
+    InvalidConnector {
+        connector: String,
+        message: String,
     },
 }
 
@@ -290,7 +330,7 @@ impl OperationRegistry {
             .get(id)
             .expect("validated operation must remain registered");
 
-        authorize_operation(registered.implementation.definition(), input, context)?;
+        authorize_operation(registered.implementation.as_ref(), input, context)?;
 
         let state_before_execution = context.state.clone();
         let output = match registered.implementation.execute(input, context) {
@@ -338,10 +378,11 @@ impl std::fmt::Debug for OperationContext {
 }
 
 fn authorize_operation(
-    definition: &OperationDefinition,
+    operation: &dyn Operation,
     input: &Value,
     context: &OperationContext,
 ) -> Result<(), OperationError> {
+    let definition = operation.definition();
     for effect in &definition.side_effects {
         let local_effect = match effect {
             SideEffect::StateWrite => Some("state.write"),
@@ -361,13 +402,7 @@ fn authorize_operation(
         }
     }
     for capability in &definition.required_permissions {
-        let target = permission_target(capability, input).ok_or_else(|| {
-            OperationError::new(
-                &definition.id,
-                "permission_target_unavailable",
-                "the Runtime cannot derive a concrete permission target for this operation",
-            )
-        })?;
+        let target = operation.permission_target(capability, input)?;
         context
             .permissions
             .authorize(&PermissionCheck {
@@ -383,7 +418,7 @@ fn authorize_operation(
     Ok(())
 }
 
-fn permission_target(capability: &Capability, input: &Value) -> Option<PermissionTarget> {
+fn default_permission_target(capability: &Capability, input: &Value) -> Option<PermissionTarget> {
     match capability {
         Capability::NetworkRequest => input
             .get("url")?

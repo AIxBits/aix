@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 aix-core = { path = "../aix-core" }
+aix-connector = { path = "../aix-connector" }
 aix-permission = { path = "../aix-permission" }
 jsonschema.workspace = true
 rusqlite.workspace = true

@@ -20,4 +20,12 @@ To inspect Phase 5, load `examples/permission-test.aix.json`. The desktop displa
 
 Use `npm run desktop:build -w @aix/desktop` to produce the current operating system's native package. Packaging and signing configuration for all supported release targets is completed in Phase 9.
 
-After permission checks pass, HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist.
+After permission checks pass, HTTP operations use the bounded host adapter. Notification and AI operations return `adapter_unavailable` until their host adapters exist.
+
+To test the Phase 6 importer without making a network request, run:
+
+```sh
+cargo run -p aix-runtime -- import-openapi examples/weather.openapi.json weather
+```
+
+The command prints a connector whose `weather.forecast` Operation accepts generic `query`, `headers`, and `body` data. An app using that Operation must request and receive a `network.request` scope covering `https://api.open-meteo.com/v1/forecast`. See the [Connector Spec](../specs/connectors/README.md) for limits and the supported OpenAPI subset.
