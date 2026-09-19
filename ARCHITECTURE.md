@@ -43,7 +43,7 @@ The Rust runtime is an independent trust boundary. It decodes strict protocol ty
 
 The desktop IPC surface separates definition preparation, activation with selected scopes and typed event dispatch. Preparation returns a host-issued token and the validated requests; activation accepts only scopes contained in that pending definition. `DesktopHost` owns the Runtime session and returns immutable render snapshots. React has no command for direct Operation invocation. `app.start`, workflow selection, bindings and state commits remain inside Rust.
 
-The authoring crate never handles credentials. A desktop host owns provider profiles, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Provider responses are size-bounded and cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
+The `AppBuilder` protocol never contains credentials. The desktop host owns provider profiles in SQLite, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Hosted profiles require HTTPS; unencrypted local profiles are confined to loopback. Calls use one user-selected chat-completions endpoint, a 60-second timeout, a 1 MiB response limit and no redirects. Provider responses cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
 
 ## State and workflows
 

@@ -14,7 +14,9 @@ To start the desktop host, install the [platform prerequisites listed by Tauri](
 npm run desktop:dev -w @aix/desktop
 ```
 
-Paste the contents of `examples/workflow.aix.json` and choose **Review and load**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
+Choose **Load JSON**, paste the contents of `examples/workflow.aix.json` and choose **Review and load**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
+
+To generate an app, choose **Build with AI** and open **Provider setup**. Hosted OpenAI-compatible APIs require an HTTPS base URL and key. Local compatible servers accept HTTPS or loopback HTTP such as `http://127.0.0.1:11434/v1`; a key is optional. The key is stored in the operating-system credential store. Describe the app and choose **Generate definition**. AIX validates the response and performs at most two repair calls before showing the definition changes and requested permissions. You can revise the result, enter the normal permission review, or export it under `Downloads/AIX`. See [AI App Builder](app-builder.md) for the complete flow and security limits.
 
 To inspect Phase 5, load `examples/permission-test.aix.json`. The desktop displays its `notification.show` scope unchecked. Loading without selecting it creates no grant, so the button produces `permission_denied`; selecting it creates an app-bound grant, so the same button reaches the notification boundary and currently produces `adapter_unavailable`. `cargo test -p aix-permission` runs the URL origin/path and file traversal/symlink checks, while `cargo test -p aix-runtime host_operations_require_grants_before_reaching_adapters` demonstrates pre-adapter enforcement.
 

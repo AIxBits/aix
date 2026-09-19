@@ -2,7 +2,7 @@
 
 AIX is an open specification and runtime for applications described by AI or people. AI builds a definition; the runtime validates and executes registered operations. Definitions never execute arbitrary Python, Shell, or JavaScript.
 
-**Status: Phase 6 foundation.** App definitions are validated independently in TypeScript and Rust. The Runtime executes bounded event-driven DAG workflows, persists app-local state through SQLite and checks every effect at a permission boundary. HTTP(S) requests now use a bounded host adapter, and declarative REST connectors become registered Operations. Every initial and redirected destination requires an app request plus an app-bound host grant. The desktop host displays requested scopes before activation. The React renderer supports all ten Beta nodes, and the provider-neutral App Builder can generate, validate and repair definitions through an injected model adapter. Real AI provider connections, credential storage and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
+**Status: Phase 7 foundation.** App definitions are validated independently in TypeScript and Rust. The Runtime executes bounded event-driven DAG workflows, persists app-local state through SQLite and checks every effect at a permission boundary. HTTP(S) requests use a bounded host adapter, and declarative REST connectors become registered Operations. The desktop AI App Builder now connects to OpenAI-compatible hosted or local providers, stores provider keys in the operating-system credential store, validates and repairs model output, displays definition changes and requested permissions, and exports reviewed JSON or YAML. The complete weather demo is the next phase. This is not a production runtime or the completed Beta.
 
 ## Quick start
 
@@ -20,7 +20,7 @@ cargo run -p aix-runtime -- import-openapi openapi.json connector-id
 npm run desktop:dev -w @aix/desktop
 ```
 
-The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every built-in input/output schema, error, side effect and required capability. `import-openapi` converts the documented local OpenAPI subset into a connector declaration. The desktop command opens the Tauri host; paste [workflow.aix.json](examples/workflow.aix.json) into its loader to exercise `Definition -> Runtime -> State -> Renderer -> Event`. Definitions with permissions enter a separate review screen; unchecked scopes remain denied.
+The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every built-in input/output schema, error, side effect and required capability. `import-openapi` converts the documented local OpenAPI subset into a connector declaration. The desktop command opens the Tauri host. Configure a hosted OpenAI-compatible API or a loopback local server in **Provider setup**, describe an app, review the validated result, then run or export it. You can also paste [workflow.aix.json](examples/workflow.aix.json) into **Load JSON**. Definitions with permissions enter a separate review screen; unchecked scopes remain denied.
 
 ## Repository
 
@@ -30,6 +30,6 @@ The TypeScript command accepts JSON or YAML. The Rust command validates JSON at 
 - `specs/`: public contracts; `examples/`: application definitions.
 - `tests/`: schema integration tests; crate modules contain Rust unit tests.
 
-See [Architecture](ARCHITECTURE.md), [Roadmap](ROADMAP.md), [Getting started](docs/getting-started.md), [Authoring](specs/authoring/README.md), [App Spec](specs/app/README.md), [Workflows](specs/workflows/README.md), [Operations](specs/operations/README.md), [Permissions](specs/permissions/README.md), and [Connectors](specs/connectors/README.md).
+See [Architecture](ARCHITECTURE.md), [Roadmap](ROADMAP.md), [Getting started](docs/getting-started.md), [AI App Builder](docs/app-builder.md), [Authoring](specs/authoring/README.md), [App Spec](specs/app/README.md), [Workflows](specs/workflows/README.md), [Operations](specs/operations/README.md), [Permissions](specs/permissions/README.md), and [Connectors](specs/connectors/README.md).
 
 Contributions follow [CONTRIBUTING](CONTRIBUTING.md). Security boundaries and reporting are in [SECURITY](SECURITY.md). Licensed under Apache-2.0.

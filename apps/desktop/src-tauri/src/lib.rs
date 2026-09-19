@@ -1,5 +1,7 @@
 //! Tauri command boundary for the AIX desktop host.
 
+mod authoring;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 #[cfg(feature = "desktop")]
@@ -12,6 +14,12 @@ use aix_runtime::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use authoring::{AuthoringHost, MemorySecretStore, SecretStore};
+pub use authoring::{
+    DefinitionChange, ExportFormat, GenerateDefinitionInput, GeneratedDefinition, ProviderKind,
+    ProviderProfile, ProviderProfileInput, SavedDefinition,
+};
 
 type DesktopSession = AppSession<SqliteStateStore>;
 
@@ -91,6 +99,7 @@ struct PendingApp {
 /// Stateful command implementation shared by Tauri commands and unit tests.
 pub struct DesktopHost {
     database_path: PathBuf,
+    authoring: AuthoringHost,
     session: Option<DesktopSession>,
     pending: Option<PendingApp>,
     next_token: u64,
@@ -99,12 +108,67 @@ pub struct DesktopHost {
 impl DesktopHost {
     /// Create a host that persists app state at the supplied SQLite path.
     pub fn new(database_path: impl Into<PathBuf>) -> Self {
+        Self::with_secret_store(
+            database_path.into(),
+            std::sync::Arc::new(MemorySecretStore::default()),
+        )
+    }
+
+    fn with_secret_store(database_path: PathBuf, secrets: std::sync::Arc<dyn SecretStore>) -> Self {
+        let export_directory = database_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join("generated");
+        Self::with_components(database_path, export_directory, secrets)
+    }
+
+    fn with_components(
+        database_path: PathBuf,
+        export_directory: PathBuf,
+        secrets: std::sync::Arc<dyn SecretStore>,
+    ) -> Self {
         Self {
-            database_path: database_path.into(),
+            authoring: AuthoringHost::new(&database_path, export_directory, secrets),
+            database_path,
             session: None,
             pending: None,
             next_token: 1,
         }
+    }
+
+    /// Return provider profiles without exposing credentials.
+    pub fn list_provider_profiles(&self) -> Result<Vec<ProviderProfile>, DesktopError> {
+        self.authoring.list_profiles()
+    }
+
+    /// Persist profile metadata and send a supplied credential to the secret store.
+    pub fn save_provider_profile(
+        &self,
+        input: ProviderProfileInput,
+    ) -> Result<ProviderProfile, DesktopError> {
+        self.authoring.save_profile(input)
+    }
+
+    /// Remove both profile metadata and its secret-store entry.
+    pub fn delete_provider_profile(&self, profile_id: &str) -> Result<(), DesktopError> {
+        self.authoring.delete_profile(profile_id)
+    }
+
+    /// Generate or revise a definition and return it for review without activation.
+    pub fn generate_definition(
+        &self,
+        input: GenerateDefinitionInput,
+    ) -> Result<GeneratedDefinition, DesktopError> {
+        self.authoring.generate(input)
+    }
+
+    /// Revalidate and export a reviewed definition into the host export directory.
+    pub fn save_generated_definition(
+        &self,
+        source: &str,
+        format: ExportFormat,
+    ) -> Result<SavedDefinition, DesktopError> {
+        self.authoring.save_definition(source, format)
     }
 
     /// Compatibility loader for apps that request no capabilities.
@@ -243,6 +307,51 @@ fn dispatch_event(
 }
 
 #[cfg(feature = "desktop")]
+#[tauri::command]
+fn list_provider_profiles(
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<Vec<ProviderProfile>, DesktopError> {
+    lock_host(&host)?.list_provider_profiles()
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn save_provider_profile(
+    input: ProviderProfileInput,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<ProviderProfile, DesktopError> {
+    lock_host(&host)?.save_provider_profile(input)
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn delete_provider_profile(
+    profile_id: String,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<(), DesktopError> {
+    lock_host(&host)?.delete_provider_profile(&profile_id)
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn generate_app(
+    input: GenerateDefinitionInput,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<GeneratedDefinition, DesktopError> {
+    lock_host(&host)?.generate_definition(input)
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn save_generated_definition(
+    source: String,
+    format: ExportFormat,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<SavedDefinition, DesktopError> {
+    lock_host(&host)?.save_generated_definition(&source, format)
+}
+
+#[cfg(feature = "desktop")]
 fn lock_host<'a>(
     host: &'a tauri::State<'_, Mutex<DesktopHost>>,
 ) -> Result<std::sync::MutexGuard<'a, DesktopHost>, DesktopError> {
@@ -261,14 +370,28 @@ pub fn run() {
         .setup(|app| {
             let directory = app.path().app_data_dir()?;
             std::fs::create_dir_all(&directory)?;
-            app.manage(Mutex::new(DesktopHost::new(directory.join("state.sqlite"))));
+            let export_directory = app
+                .path()
+                .download_dir()
+                .unwrap_or_else(|_| directory.join("generated"))
+                .join("AIX");
+            app.manage(Mutex::new(DesktopHost::with_components(
+                directory.join("state.sqlite"),
+                export_directory,
+                std::sync::Arc::new(authoring::OsSecretStore),
+            )));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             load_app,
             prepare_app,
             activate_app,
-            dispatch_event
+            dispatch_event,
+            list_provider_profiles,
+            save_provider_profile,
+            delete_provider_profile,
+            generate_app,
+            save_generated_definition
         ])
         .run(tauri::generate_context!())
         .expect("failed to run AIX desktop host");

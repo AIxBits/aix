@@ -15,14 +15,22 @@ required-features = ["desktop"]
 
 [features]
 default = []
-desktop = ["dep:tauri", "tauri/wry"]
+desktop = ["dep:keyring", "dep:tauri", "tauri/wry"]
 
 [dependencies]
 aix-core = { path = "../../../crates/aix-core" }
+aix-authoring = { path = "../../../crates/aix-authoring" }
 aix-runtime = { path = "../../../crates/aix-runtime" }
+async-trait.workspace = true
+futures.workspace = true
+keyring = { version = "3.6.3", optional = true }
+reqwest.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
 tauri = { version = "2.11.5", default-features = false, optional = true , features = [] }
+url.workspace = true
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }

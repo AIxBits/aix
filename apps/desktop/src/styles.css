@@ -1,13 +1,36 @@
 :root { color: #172033; background: #f3f6fb; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, input, textarea { font: inherit; }
+button, input, textarea, select { font: inherit; }
 .shell { width: min(880px, calc(100% - 32px)); margin: 24px auto; }
 header { display: flex; align-items: baseline; gap: 16px; padding: 18px 20px; color: white; background: #172033; border-radius: 14px; }
 header strong { font-size: 1.3rem; }
 header span { color: #cbd5e1; }
 header .secondary { margin-left: auto; color: #172033; background: #e8edf7; }
-.loader, .permissions, main { display: grid; gap: 16px; margin-top: 18px; padding: 22px; background: white; border: 1px solid #dce3ee; border-radius: 14px; box-shadow: 0 12px 32px rgb(23 32 51 / 8%); }
+.loader, .permissions, .builder, main { display: grid; gap: 16px; margin-top: 18px; padding: 22px; background: white; border: 1px solid #dce3ee; border-radius: 14px; box-shadow: 0 12px 32px rgb(23 32 51 / 8%); }
+.mode-tabs { display: flex; gap: 8px; margin-top: 18px; }
+.mode-tabs .active { box-shadow: 0 0 0 3px rgb(49 94 251 / 18%); }
+.section-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.section-heading h2, .section-heading h3, .section-heading p, .builder h4 { margin: 0; }
+.provider-editor, .generated-review { display: grid; gap: 14px; padding: 18px; border: 1px solid #cad5e5; border-radius: 10px; background: #f8faff; }
+.provider-editor h3 { margin: 0; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid label { display: grid; gap: 6px; }
+.form-grid .wide { grid-column: 1 / -1; }
+.form-grid small { color: #64748b; }
+.profile-list, .changes { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.profile-list li, .changes li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; background: white; border: 1px solid #dce3ee; border-radius: 8px; }
+.profile-list .danger { padding: 6px 10px; color: #8f1d1d; background: #ffeded; }
+.inline-message, .saved-path { margin: 0; overflow-wrap: anywhere; }
+.requirement { min-height: 130px; font-family: inherit; }
+.generated-review { margin-top: 4px; background: #fbfcff; }
+.valid-badge { padding: 6px 10px; color: #17633b; background: #e7f7ee; border-radius: 999px; font-size: .85rem; font-weight: 700; }
+.changes li { justify-content: start; }
+.changes span { min-width: 68px; padding: 3px 7px; border-radius: 999px; text-align: center; font-size: .78rem; font-weight: 700; }
+.change-added { color: #17633b; background: #e7f7ee; }
+.change-removed { color: #8f1d1d; background: #ffeded; }
+.change-changed { color: #704600; background: #fff2cc; }
+details pre { max-height: 360px; overflow: auto; padding: 12px; white-space: pre-wrap; background: #101827; color: #dce7f7; border-radius: 8px; }
 .permissions h2, .permissions p { margin: 0; }
 .permission { display: flex; gap: 12px; align-items: start; padding: 12px; border: 1px solid #dce3ee; border-radius: 8px; }
 .permission span { display: grid; gap: 4px; }
@@ -15,10 +38,11 @@ header .secondary { margin-left: auto; color: #172033; background: #e8edf7; }
 .actions { display: flex; gap: 10px; }
 .secondary { color: #172033; background: #e8edf7; }
 textarea { width: 100%; min-height: 360px; padding: 12px; border: 1px solid #aab6c8; border-radius: 8px; font-family: ui-monospace, monospace; }
-input { min-width: 0; padding: 10px 12px; border: 1px solid #aab6c8; border-radius: 8px; }
+input, select { min-width: 0; padding: 10px 12px; border: 1px solid #aab6c8; border-radius: 8px; background: white; }
 button { width: fit-content; padding: 10px 16px; border: 0; border-radius: 8px; color: white; background: #315efb; cursor: pointer; }
 button:disabled { opacity: .55; cursor: default; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 8px; text-align: left; border-bottom: 1px solid #dce3ee; }
 img, video { max-width: 100%; }
 .error { padding: 12px 16px; color: #8f1d1d; background: #ffeded; border-radius: 8px; }
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } .section-heading { display: grid; } }
