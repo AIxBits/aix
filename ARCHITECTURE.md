@@ -41,7 +41,7 @@ Model output and app definitions are untrusted data. The authoring plane can gen
 
 The Rust runtime is an independent trust boundary. It decodes strict protocol types, validates IDs and workflow graphs, checks registered operations and validates static operation inputs. Frontend validation cannot authorize native execution.
 
-The desktop IPC surface contains two commands: load a Definition and dispatch a typed event. `DesktopHost` owns the Runtime session and returns immutable render snapshots. React has no command for direct Operation invocation. `app.start`, workflow selection, bindings and state commits remain inside Rust.
+The desktop IPC surface separates definition preparation, activation with selected scopes and typed event dispatch. Preparation returns a host-issued token and the validated requests; activation accepts only scopes contained in that pending definition. `DesktopHost` owns the Runtime session and returns immutable render snapshots. React has no command for direct Operation invocation. `app.start`, workflow selection, bindings and state commits remain inside Rust.
 
 The authoring crate never handles credentials. A desktop host owns provider profiles, resolves keys from OS-backed secret storage and injects an `AppGenerationProvider`. Provider responses are size-bounded and cannot become runnable until the Runtime accepts them. Generated permissions are requests shown to the user, not grants.
 
@@ -51,7 +51,7 @@ State uses JSON values. State writes flow through registered Operations. `AppSes
 
 Bindings use structured references such as `{ "$state": "/city" }`, `{ "$event": "/value" }` and `{ "$step": "fetch", "path": "/body" }`. They are resolved immediately before the Operation input is validated. Each workflow is a transaction over in-memory state: any binding or Operation error, cancellation, limit breach or persistence failure restores the pre-workflow snapshot.
 
-## Side effects and trust (planned)
+## Side effects and trust
 
 Every side effect, including state mutation, passes a resolver boundary. Internal app-state effects receive an app-local runtime grant; external effects require host-approved scoped capabilities. Requested permissions are not granted permissions. Check the resolved destination at execution time, including redirects and resource loading. UI media fetches cannot bypass network policy; the host resolves resources into safe handles.
 

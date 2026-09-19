@@ -6,3 +6,5 @@ license.workspace = true
 
 [dependencies]
 aix-core = { path = "../aix-core" }
+serde.workspace = true
+url.workspace = true

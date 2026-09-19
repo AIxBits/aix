@@ -8,14 +8,16 @@ Run `cargo run -p aix-runtime -- validate examples/hello.aix.json` to repeat str
 
 Validate the Phase 3 example with `npm run validate -- examples/workflow.aix.json` and `cargo run -p aix-runtime -- validate examples/workflow.aix.json`. An embedding host loads the returned `AppDefinition` into `AppSession`, supplies a `MemoryStateStore` or `SqliteStateStore`, and dispatches typed `RuntimeEvent` values. See the [Workflow Spec](../specs/workflows/README.md) for binding, ordering, timer and rollback rules.
 
-To start the Phase 4 desktop host, install the [platform prerequisites listed by Tauri](https://v2.tauri.app/start/prerequisites/) and run:
+To start the desktop host, install the [platform prerequisites listed by Tauri](https://v2.tauri.app/start/prerequisites/) and run:
 
 ```sh
 npm run desktop:dev -w @aix/desktop
 ```
 
-Paste the contents of `examples/workflow.aix.json` and choose **Load app**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
+Paste the contents of `examples/workflow.aix.json` and choose **Review and load**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
+
+To inspect Phase 5, add a permission request such as `{"capability":"network.request","scopes":["https://api.example.com/weather"]}` to an example. The desktop displays each scope unchecked. Loading without selecting it creates no grant; selecting it creates an app-bound grant. HTTP still ends with `adapter_unavailable` after a valid grant because transport arrives in Phase 6. `cargo test -p aix-permission` runs the URL origin/path and file traversal/symlink checks, while `cargo test -p aix-runtime host_operations_require_grants_before_reaching_adapters` demonstrates pre-adapter enforcement.
 
 Use `npm run desktop:build -w @aix/desktop` to produce the current operating system's native package. Packaging and signing configuration for all supported release targets is completed in Phase 9.
 
-HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist.
+After permission checks pass, HTTP, notification and AI operations return `adapter_unavailable` until their host adapters exist.

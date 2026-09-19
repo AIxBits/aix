@@ -2,7 +2,7 @@
 
 AIX is an open specification and runtime for applications described by AI or people. AI builds a definition; the runtime validates and executes registered operations. Definitions never execute arbitrary Python, Shell, or JavaScript.
 
-**Status: Phase 4 foundation.** App definitions are validated independently in TypeScript and Rust. The Runtime executes bounded event-driven DAG workflows and persists app-local state through SQLite. The React renderer supports all ten Beta nodes, consumes host-resolved resources and returns typed events through a Tauri 2 bridge. A provider-neutral App Builder can generate, validate and repair definitions through an injected model adapter. Real provider connections, credential storage, scoped permission enforcement, HTTP transport and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
+**Status: Phase 5 foundation.** App definitions are validated independently in TypeScript and Rust. The Runtime executes bounded event-driven DAG workflows, persists app-local state through SQLite and checks every effect at a permission boundary. External capabilities are denied unless a separately approved, app-bound scope and the definition request both cover the concrete target. The desktop host displays requested scopes before activation. The React renderer supports all ten Beta nodes, and the provider-neutral App Builder can generate, validate and repair definitions through an injected model adapter. Real provider connections, credential storage, HTTP transport and the weather demo are not implemented yet. This is not a production runtime or the completed Beta.
 
 ## Quick start
 
@@ -19,7 +19,7 @@ cargo run -p aix-runtime -- operations
 npm run desktop:dev -w @aix/desktop
 ```
 
-The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every registered input/output schema, error, side effect and required capability. The desktop command opens the Tauri host; paste [workflow.aix.json](examples/workflow.aix.json) into its loader to exercise `Definition -> Runtime -> State -> Renderer -> Event`.
+The TypeScript command accepts JSON or YAML. The Rust command validates JSON at the runtime trust boundary. `operations` prints every registered input/output schema, error, side effect and required capability. The desktop command opens the Tauri host; paste [workflow.aix.json](examples/workflow.aix.json) into its loader to exercise `Definition -> Runtime -> State -> Renderer -> Event`. Definitions with permissions enter a separate review screen; unchecked scopes remain denied.
 
 ## Repository
 

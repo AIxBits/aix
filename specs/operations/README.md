@@ -36,7 +36,7 @@ Exact schemas are the definitions returned by `cargo run -p aix-runtime -- opera
 
 Paths are RFC 6901 JSON Pointers such as `/weather/temperature`. `collection.filter` accepts only the operators `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, and `contains`. `data.transform` maps output field names to source pointers. No operation accepts a callback, expression language, template code, JavaScript, Python or shell command.
 
-`state.set` is confined to the current `OperationContext`. External operations have no adapter in Phase 2 and therefore cannot perform an effect. Phase 5 inserts scoped permission resolution before host effects; Phase 6 supplies the HTTP adapter. Model credentials and provider-specific clients remain outside definitions and the core registry.
+`state.set` is confined to the current `OperationContext`, but its local effect still crosses the resolver. External operations require an app request and a separately approved host grant before reaching an adapter. Phase 6 supplies the HTTP adapter. Model credentials and provider-specific clients remain outside definitions and the core registry.
 
 ## Checked invocation
 

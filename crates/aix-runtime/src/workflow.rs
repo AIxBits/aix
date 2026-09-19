@@ -7,6 +7,7 @@ use std::sync::{
 };
 
 use aix_core::{AppDefinition, EventKind, Workflow, WorkflowStep, WorkflowTransition};
+use aix_permission::{CapabilityResolver, HostGrant, ResolverBuildError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -170,6 +171,7 @@ pub enum SessionError {
     InvalidApp(AppValidationError),
     StateStore(StateStoreError),
     InvalidState(String),
+    Permissions(ResolverBuildError),
 }
 
 impl std::fmt::Display for SessionError {
@@ -178,6 +180,7 @@ impl std::fmt::Display for SessionError {
             Self::InvalidApp(error) => write!(formatter, "invalid app: {error}"),
             Self::StateStore(error) => write!(formatter, "state store: {error}"),
             Self::InvalidState(message) => formatter.write_str(message),
+            Self::Permissions(error) => write!(formatter, "permissions: {error}"),
         }
     }
 }
@@ -206,6 +209,17 @@ impl<S: StateStore> AppSession<S> {
         store: S,
         limits: ExecutionLimits,
     ) -> Result<Self, SessionError> {
+        Self::with_grants(runtime, app, store, limits, &[])
+    }
+
+    /// Load an app with user-approved, app-bound host grants.
+    pub fn with_grants(
+        runtime: Runtime,
+        app: AppDefinition,
+        store: S,
+        limits: ExecutionLimits,
+        grants: &[HostGrant],
+    ) -> Result<Self, SessionError> {
         validate_app(&app, runtime.operations()).map_err(SessionError::InvalidApp)?;
         if limits.max_steps_per_workflow == 0 {
             return Err(SessionError::InvalidState(
@@ -213,6 +227,8 @@ impl<S: StateStore> AppSession<S> {
             ));
         }
         let app_id = app.metadata.id.as_str();
+        let resolver = CapabilityResolver::new(app_id, &app.permissions, grants)
+            .map_err(SessionError::Permissions)?;
         let state = match store.load(app_id).map_err(SessionError::StateStore)? {
             Some(state) => state,
             None => {
@@ -228,7 +244,8 @@ impl<S: StateStore> AppSession<S> {
             }
         };
         let context = OperationContext::new(state)
-            .map_err(|error| SessionError::InvalidState(error.message))?;
+            .map_err(|error| SessionError::InvalidState(error.message))?
+            .with_permissions(Arc::new(resolver));
         Ok(Self {
             runtime,
             app,

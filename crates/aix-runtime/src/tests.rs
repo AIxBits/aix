@@ -1,11 +1,13 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
-use aix_core::Capability;
+use aix_core::{Capability, PermissionRequest};
 use serde_json::{json, Value};
 
 use crate::{
-    ErrorDefinition, Operation, OperationContext, OperationDefinition, OperationError,
-    OperationRegistry, RegisterError, Runtime, SideEffect, MAX_APP_DEFINITION_BYTES,
+    CapabilityResolver, ErrorDefinition, HostGrant, Operation, OperationContext,
+    OperationDefinition, OperationError, OperationRegistry, PermissionCheck, PermissionDenied,
+    PermissionResolver, RegisterError, Runtime, SideEffect, MAX_APP_DEFINITION_BYTES,
 };
 
 fn runtime() -> Runtime {
@@ -113,6 +115,39 @@ fn state_errors_are_structured() {
     assert_eq!(bad_index.code, "invalid_path");
 }
 
+struct DenyLocalEffects;
+
+impl PermissionResolver for DenyLocalEffects {
+    fn authorize(&self, check: &PermissionCheck) -> Result<(), PermissionDenied> {
+        Err(PermissionDenied {
+            capability: check.capability.clone(),
+            code: "permission_denied".to_owned(),
+            message: "external denied".to_owned(),
+        })
+    }
+
+    fn authorize_local_effect(&self, _operation_id: &str, _effect: &str) -> bool {
+        false
+    }
+}
+
+#[test]
+fn app_local_side_effects_also_cross_the_resolver() {
+    let runtime = runtime();
+    let mut context = OperationContext::new(json!({ "value": 1 }))
+        .unwrap()
+        .with_permissions(Arc::new(DenyLocalEffects));
+    let error = runtime
+        .execute(
+            "state.set",
+            &json!({ "path": "/value", "value": 2 }),
+            &mut context,
+        )
+        .unwrap_err();
+    assert_eq!(error.code, "permission_denied");
+    assert_eq!(context.state()["value"], 1);
+}
+
 #[test]
 fn validates_operation_input_before_execution() {
     let runtime = runtime();
@@ -204,11 +239,50 @@ fn transforms_data_with_bounded_pointer_mapping() {
 }
 
 #[test]
-fn host_operations_fail_without_performing_effects() {
+fn host_operations_require_grants_before_reaching_adapters() {
     let runtime = runtime();
     let mut context = OperationContext::empty();
     for (id, input) in [
         ("http.request", json!({ "url": "https://example.com" })),
+        ("notification.show", json!({ "message": "hello" })),
+        ("ai.generate", json!({ "prompt": "hello" })),
+    ] {
+        let error = runtime.execute(id, &input, &mut context).unwrap_err();
+        assert_eq!(error.code, "permission_denied");
+    }
+
+    let requests = vec![
+        PermissionRequest {
+            capability: Capability::NetworkRequest,
+            scopes: vec!["https://example.com".into()],
+        },
+        PermissionRequest {
+            capability: Capability::NotificationShow,
+            scopes: vec!["default".into()],
+        },
+        PermissionRequest {
+            capability: Capability::AiGenerate,
+            scopes: vec!["default".into()],
+        },
+    ];
+    let grants = requests
+        .iter()
+        .map(|request| {
+            HostGrant::new(
+                "test.app",
+                request.capability.clone(),
+                request.scopes.clone(),
+            )
+            .unwrap()
+        })
+        .collect::<Vec<_>>();
+    let resolver = CapabilityResolver::new("test.app", &requests, &grants).unwrap();
+    let mut context = OperationContext::empty().with_permissions(Arc::new(resolver));
+    for (id, input) in [
+        (
+            "http.request",
+            json!({ "url": "https://example.com/weather" }),
+        ),
         ("notification.show", json!({ "message": "hello" })),
         ("ai.generate", json!({ "prompt": "hello" })),
     ] {
@@ -339,6 +413,16 @@ fn registry_rejects_duplicate_ids_and_invalid_schemas() {
     assert!(matches!(
         registry.register(invalid_schema),
         Err(RegisterError::InvalidOutputSchema { operation, .. }) if operation == "test.schema"
+    ));
+
+    let mut unguarded = TestOperation::new("test.unguarded", json!(true), Ok(json!(1)));
+    unguarded.definition.side_effects = vec![SideEffect::NetworkRequest];
+    assert!(matches!(
+        registry.register(unguarded),
+        Err(RegisterError::MissingPermissionForSideEffect {
+            operation,
+            side_effect: SideEffect::NetworkRequest
+        }) if operation == "test.unguarded"
     ));
 }
 

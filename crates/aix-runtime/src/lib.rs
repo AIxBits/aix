@@ -11,6 +11,10 @@ mod operation;
 mod state_store;
 mod workflow;
 
+pub use aix_permission::{
+    CapabilityResolver, HostGrant, PermissionCheck, PermissionDenied, PermissionResolver,
+    PermissionTarget, ResolverBuildError,
+};
 pub use app_validation::{
     validate_app, validate_app_json, AppValidationError, ValidationIssue, MAX_APP_DEFINITION_BYTES,
     MAX_WORKFLOW_STEPS,

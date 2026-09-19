@@ -5,11 +5,12 @@ use std::path::PathBuf;
 #[cfg(feature = "desktop")]
 use std::sync::Mutex;
 
-use aix_core::{AppDefinition, Resource, ResourceKind};
+use aix_core::{AppDefinition, Capability, PermissionRequest, Resource, ResourceKind};
 use aix_runtime::{
-    AppSession, CancellationToken, Runtime, RuntimeEvent, SqliteStateStore, TimerSubscription,
+    AppSession, CancellationToken, ExecutionLimits, HostGrant, Runtime, RuntimeEvent,
+    SqliteStateStore, TimerSubscription,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 type DesktopSession = AppSession<SqliteStateStore>;
@@ -64,10 +65,35 @@ pub struct DesktopError {
     pub message: String,
 }
 
+/// Validated permission request shown before any grant is constructed.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionPreview {
+    pub token: u64,
+    pub app_id: String,
+    pub app_name: String,
+    pub requests: Vec<PermissionRequest>,
+}
+
+/// Scopes explicitly selected in the trusted desktop shell.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PermissionApproval {
+    pub capability: Capability,
+    pub scopes: Vec<String>,
+}
+
+struct PendingApp {
+    token: u64,
+    app: AppDefinition,
+}
+
 /// Stateful command implementation shared by Tauri commands and unit tests.
 pub struct DesktopHost {
     database_path: PathBuf,
     session: Option<DesktopSession>,
+    pending: Option<PendingApp>,
+    next_token: u64,
 }
 
 impl DesktopHost {
@@ -76,19 +102,83 @@ impl DesktopHost {
         Self {
             database_path: database_path.into(),
             session: None,
+            pending: None,
+            next_token: 1,
         }
     }
 
-    /// Validate, load and start one app definition.
+    /// Compatibility loader for apps that request no capabilities.
     pub fn load_app(&mut self, source: &str) -> Result<DesktopSnapshot, DesktopError> {
+        let preview = self.prepare_app(source)?;
+        if !preview.requests.is_empty() {
+            return Err(DesktopError {
+                code: "permission_approval_required".to_owned(),
+                message: "review the requested capabilities before loading this app".to_owned(),
+            });
+        }
+        self.activate_app(preview.token, vec![])
+    }
+
+    /// Validate a definition and return its requests without granting them.
+    pub fn prepare_app(&mut self, source: &str) -> Result<PermissionPreview, DesktopError> {
         let runtime = Runtime::new().map_err(|error| desktop_error("runtime_init", error))?;
         let app = runtime
             .load_json(source)
             .map_err(|error| desktop_error("invalid_app", error))?;
+        let token = self.next_token;
+        self.next_token = self.next_token.wrapping_add(1).max(1);
+        let preview = PermissionPreview {
+            token,
+            app_id: app.metadata.id.clone(),
+            app_name: app.metadata.name.clone(),
+            requests: app.permissions.clone(),
+        };
+        self.pending = Some(PendingApp { token, app });
+        Ok(preview)
+    }
+
+    /// Construct grants from selected requested scopes, then load and start.
+    pub fn activate_app(
+        &mut self,
+        token: u64,
+        approvals: Vec<PermissionApproval>,
+    ) -> Result<DesktopSnapshot, DesktopError> {
+        let pending = self
+            .pending
+            .take()
+            .filter(|pending| pending.token == token)
+            .ok_or_else(|| DesktopError {
+                code: "stale_permission_review".to_owned(),
+                message: "validate this App Definition again before approving it".to_owned(),
+            })?;
+        let app = pending.app;
+        let mut grants = Vec::new();
+        for approval in approvals {
+            let requested = app.permissions.iter().any(|request| {
+                request.capability == approval.capability
+                    && approval
+                        .scopes
+                        .iter()
+                        .all(|scope| request.scopes.contains(scope))
+            });
+            if !requested {
+                return Err(DesktopError {
+                    code: "invalid_permission_approval".to_owned(),
+                    message: "an approval contained a capability or scope the app did not request"
+                        .to_owned(),
+                });
+            }
+            grants.push(
+                HostGrant::new(&app.metadata.id, approval.capability, approval.scopes)
+                    .map_err(|error| desktop_error("invalid_permission_approval", error))?,
+            );
+        }
+        let runtime = Runtime::new().map_err(|error| desktop_error("runtime_init", error))?;
         let store = SqliteStateStore::open(&self.database_path)
             .map_err(|error| desktop_error("state_store", error))?;
-        let mut session = AppSession::new(runtime, app, store)
-            .map_err(|error| desktop_error("session_init", error))?;
+        let mut session =
+            AppSession::with_grants(runtime, app, store, ExecutionLimits::default(), &grants)
+                .map_err(|error| desktop_error("session_init", error))?;
         session
             .dispatch(
                 &RuntimeEvent::AppStart {
@@ -113,6 +203,25 @@ impl DesktopHost {
             .map_err(|error| desktop_error("workflow_failed", error))?;
         Ok(build_snapshot(session))
     }
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn prepare_app(
+    source: String,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<PermissionPreview, DesktopError> {
+    lock_host(&host)?.prepare_app(&source)
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+fn activate_app(
+    token: u64,
+    approvals: Vec<PermissionApproval>,
+    host: tauri::State<'_, Mutex<DesktopHost>>,
+) -> Result<DesktopSnapshot, DesktopError> {
+    lock_host(&host)?.activate_app(token, approvals)
 }
 
 #[cfg(feature = "desktop")]
@@ -155,7 +264,12 @@ pub fn run() {
             app.manage(Mutex::new(DesktopHost::new(directory.join("state.sqlite"))));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![load_app, dispatch_event])
+        .invoke_handler(tauri::generate_handler![
+            load_app,
+            prepare_app,
+            activate_app,
+            dispatch_event
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run AIX desktop host");
 }
@@ -294,5 +408,29 @@ mod tests {
             })
             .unwrap_err();
         assert_eq!(error.code, "app_not_loaded");
+    }
+
+    #[test]
+    fn permission_review_rejects_scopes_the_app_did_not_request() {
+        let path = database_path("permissions");
+        let _ = std::fs::remove_file(&path);
+        let source = include_str!("../../../../examples/hello.aix.json").replace(
+            "\"permissions\": []",
+            "\"permissions\": [{ \"capability\": \"network.request\", \"scopes\": [\"https://api.example.com/weather\"] }]",
+        );
+        let mut host = DesktopHost::new(&path);
+        let preview = host.prepare_app(&source).unwrap();
+        assert_eq!(preview.requests.len(), 1);
+        let error = host
+            .activate_app(
+                preview.token,
+                vec![PermissionApproval {
+                    capability: Capability::NetworkRequest,
+                    scopes: vec!["https://evil.example".to_owned()],
+                }],
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "invalid_permission_approval");
+        let _ = std::fs::remove_file(path);
     }
 }

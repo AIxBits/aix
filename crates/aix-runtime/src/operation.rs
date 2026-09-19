@@ -1,8 +1,11 @@
 //! Operation contracts, registry and checked execution.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use aix_core::Capability;
+use aix_permission::{DenyAllResolver, PermissionCheck, PermissionResolver, PermissionTarget};
 use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -77,11 +80,13 @@ impl OperationError {
 
 /// Mutable data available to an operation invocation.
 ///
-/// Host adapters are intentionally absent in Phase 2. Operations that require
-/// them return `adapter_unavailable` without performing a side effect.
-#[derive(Clone, Debug)]
+/// Host adapters are intentionally absent. Capability-gated operations first
+/// pass this context's resolver, then return `adapter_unavailable` until their
+/// adapter is installed.
+#[derive(Clone)]
 pub struct OperationContext {
     state: Value,
+    permissions: Arc<dyn PermissionResolver>,
 }
 
 impl OperationContext {
@@ -94,12 +99,24 @@ impl OperationContext {
                 "application state must be a JSON object",
             ));
         }
-        Ok(Self { state })
+        Ok(Self {
+            state,
+            permissions: Arc::new(DenyAllResolver),
+        })
     }
 
     /// Create an empty app-local state object.
     pub fn empty() -> Self {
-        Self { state: json!({}) }
+        Self {
+            state: json!({}),
+            permissions: Arc::new(DenyAllResolver),
+        }
+    }
+
+    /// Replace the default-deny resolver with one supplied by the host.
+    pub fn with_permissions(mut self, permissions: Arc<dyn PermissionResolver>) -> Self {
+        self.permissions = permissions;
+        self
     }
 
     /// Read the current state snapshot.
@@ -136,9 +153,22 @@ struct RegisteredOperation {
 pub enum RegisterError {
     InvalidId(String),
     DuplicateId(String),
-    DuplicateErrorCode { operation: String, code: String },
-    InvalidInputSchema { operation: String, message: String },
-    InvalidOutputSchema { operation: String, message: String },
+    DuplicateErrorCode {
+        operation: String,
+        code: String,
+    },
+    InvalidInputSchema {
+        operation: String,
+        message: String,
+    },
+    InvalidOutputSchema {
+        operation: String,
+        message: String,
+    },
+    MissingPermissionForSideEffect {
+        operation: String,
+        side_effect: SideEffect,
+    },
 }
 
 impl std::fmt::Display for RegisterError {
@@ -176,6 +206,14 @@ impl OperationRegistry {
                 return Err(RegisterError::DuplicateErrorCode {
                     operation: definition.id.clone(),
                     code: error.code.clone(),
+                });
+            }
+        }
+        for side_effect in &definition.side_effects {
+            if !side_effect_has_permission(side_effect, definition) {
+                return Err(RegisterError::MissingPermissionForSideEffect {
+                    operation: definition.id.clone(),
+                    side_effect: side_effect.clone(),
                 });
             }
         }
@@ -252,6 +290,8 @@ impl OperationRegistry {
             .get(id)
             .expect("validated operation must remain registered");
 
+        authorize_operation(registered.implementation.definition(), input, context)?;
+
         let state_before_execution = context.state.clone();
         let output = match registered.implementation.execute(input, context) {
             Ok(output) => output,
@@ -288,6 +328,77 @@ impl OperationRegistry {
     }
 }
 
+impl std::fmt::Debug for OperationContext {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OperationContext")
+            .field("state", &self.state)
+            .finish_non_exhaustive()
+    }
+}
+
+fn authorize_operation(
+    definition: &OperationDefinition,
+    input: &Value,
+    context: &OperationContext,
+) -> Result<(), OperationError> {
+    for effect in &definition.side_effects {
+        let local_effect = match effect {
+            SideEffect::StateWrite => Some("state.write"),
+            SideEffect::TimeRead => Some("time.read"),
+            _ => None,
+        };
+        if local_effect.is_some_and(|effect| {
+            !context
+                .permissions
+                .authorize_local_effect(&definition.id, effect)
+        }) {
+            return Err(OperationError::new(
+                &definition.id,
+                "permission_denied",
+                "the permission resolver denied an app-local effect",
+            ));
+        }
+    }
+    for capability in &definition.required_permissions {
+        let target = permission_target(capability, input).ok_or_else(|| {
+            OperationError::new(
+                &definition.id,
+                "permission_target_unavailable",
+                "the Runtime cannot derive a concrete permission target for this operation",
+            )
+        })?;
+        context
+            .permissions
+            .authorize(&PermissionCheck {
+                operation_id: definition.id.clone(),
+                capability: capability.clone(),
+                target,
+            })
+            .map_err(|error| {
+                OperationError::new(&definition.id, error.code, error.message)
+                    .with_details(json!({ "capability": error.capability }))
+            })?;
+    }
+    Ok(())
+}
+
+fn permission_target(capability: &Capability, input: &Value) -> Option<PermissionTarget> {
+    match capability {
+        Capability::NetworkRequest => input
+            .get("url")?
+            .as_str()
+            .map(|value| PermissionTarget::NetworkUrl(value.to_owned())),
+        Capability::FileRead | Capability::FileWrite => input
+            .get("path")?
+            .as_str()
+            .map(|value| PermissionTarget::FilePath(PathBuf::from(value))),
+        Capability::NotificationShow | Capability::AiGenerate => {
+            Some(PermissionTarget::Named("default".to_owned()))
+        }
+    }
+}
+
 fn validation_messages(validator: &Validator, value: &Value) -> Vec<String> {
     validator
         .iter_errors(value)
@@ -310,4 +421,25 @@ fn is_operation_id(id: &str) -> bool {
     let first = segments.next().is_some_and(valid_segment);
     let remaining: Vec<_> = segments.collect();
     first && !remaining.is_empty() && remaining.into_iter().all(valid_segment)
+}
+
+fn side_effect_has_permission(effect: &SideEffect, definition: &OperationDefinition) -> bool {
+    match effect {
+        SideEffect::StateWrite | SideEffect::TimeRead => true,
+        SideEffect::NotificationShow => definition
+            .required_permissions
+            .contains(&Capability::NotificationShow),
+        SideEffect::AiGenerate => definition
+            .required_permissions
+            .contains(&Capability::AiGenerate),
+        SideEffect::NetworkRequest => {
+            definition
+                .required_permissions
+                .contains(&Capability::NetworkRequest)
+                || (definition.side_effects.contains(&SideEffect::AiGenerate)
+                    && definition
+                        .required_permissions
+                        .contains(&Capability::AiGenerate))
+        }
+    }
 }

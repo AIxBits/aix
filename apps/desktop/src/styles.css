@@ -7,7 +7,13 @@ header { display: flex; align-items: baseline; gap: 16px; padding: 18px 20px; co
 header strong { font-size: 1.3rem; }
 header span { color: #cbd5e1; }
 header .secondary { margin-left: auto; color: #172033; background: #e8edf7; }
-.loader, main { display: grid; gap: 16px; margin-top: 18px; padding: 22px; background: white; border: 1px solid #dce3ee; border-radius: 14px; box-shadow: 0 12px 32px rgb(23 32 51 / 8%); }
+.loader, .permissions, main { display: grid; gap: 16px; margin-top: 18px; padding: 22px; background: white; border: 1px solid #dce3ee; border-radius: 14px; box-shadow: 0 12px 32px rgb(23 32 51 / 8%); }
+.permissions h2, .permissions p { margin: 0; }
+.permission { display: flex; gap: 12px; align-items: start; padding: 12px; border: 1px solid #dce3ee; border-radius: 8px; }
+.permission span { display: grid; gap: 4px; }
+.permission code { overflow-wrap: anywhere; }
+.actions { display: flex; gap: 10px; }
+.secondary { color: #172033; background: #e8edf7; }
 textarea { width: 100%; min-height: 360px; padding: 12px; border: 1px solid #aab6c8; border-radius: 8px; font-family: ui-monospace, monospace; }
 input { min-width: 0; padding: 10px 12px; border: 1px solid #aab6c8; border-radius: 8px; }
 button { width: fit-content; padding: 10px 16px; border: 0; border-radius: 8px; color: white; background: #315efb; cursor: pointer; }
