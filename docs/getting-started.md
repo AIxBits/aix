@@ -16,7 +16,7 @@ npm run desktop:dev -w @aix/desktop
 
 Paste the contents of `examples/workflow.aix.json` and choose **Review and load**. Loading runs `app.start`; changing the city emits `ui.change`; the Refresh button emits `ui.click`. Every event crosses Tauri IPC and returns a new Runtime snapshot. App-local state is stored in the operating system's AIX application-data directory.
 
-To inspect Phase 5, add a permission request such as `{"capability":"network.request","scopes":["https://api.example.com/weather"]}` to an example. The desktop displays each scope unchecked. Loading without selecting it creates no grant; selecting it creates an app-bound grant. HTTP still ends with `adapter_unavailable` after a valid grant because transport arrives in Phase 6. `cargo test -p aix-permission` runs the URL origin/path and file traversal/symlink checks, while `cargo test -p aix-runtime host_operations_require_grants_before_reaching_adapters` demonstrates pre-adapter enforcement.
+To inspect Phase 5, load `examples/permission-test.aix.json`. The desktop displays its `notification.show` scope unchecked. Loading without selecting it creates no grant, so the button produces `permission_denied`; selecting it creates an app-bound grant, so the same button reaches the notification boundary and currently produces `adapter_unavailable`. `cargo test -p aix-permission` runs the URL origin/path and file traversal/symlink checks, while `cargo test -p aix-runtime host_operations_require_grants_before_reaching_adapters` demonstrates pre-adapter enforcement.
 
 Use `npm run desktop:build -w @aix/desktop` to produce the current operating system's native package. Packaging and signing configuration for all supported release targets is completed in Phase 9.
 

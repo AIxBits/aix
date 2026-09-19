@@ -1,0 +1,67 @@
+{
+  "specVersion": "0.1.0",
+  "metadata": {
+    "id": "permission-test",
+    "name": "Permission Test",
+    "version": "1.0.0",
+    "description": "Tests explicit notification permission approval"
+  },
+  "state": {
+    "message": "AIX permission check reached the notification operation."
+  },
+  "resources": {},
+  "ui": {
+    "id": "permission-page",
+    "type": "page",
+    "props": {
+      "label": "AIX Permission Test"
+    },
+    "children": [
+      {
+        "id": "instructions",
+        "type": "text",
+        "props": {
+          "text": "Click the button to test notification.show permission."
+        }
+      },
+      {
+        "id": "show-notification",
+        "type": "button",
+        "props": {
+          "label": "Show notification"
+        }
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "id": "showNotification",
+      "on": {
+        "type": "ui.click",
+        "target": "show-notification"
+      },
+      "entry": "notify",
+      "steps": [
+        {
+          "id": "notify",
+          "operation": "notification.show",
+          "input": {
+            "title": "AIX Runtime",
+            "message": {
+              "$state": "/message"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "connectors": [],
+  "permissions": [
+    {
+      "capability": "notification.show",
+      "scopes": [
+        "default"
+      ]
+    }
+  ]
+}
